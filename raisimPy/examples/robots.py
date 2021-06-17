@@ -10,7 +10,7 @@ anymal_urdf_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/anym
 laikago_urdf_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/laikago/laikago.urdf"
 atlas_urdf_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/atlas/robot.urdf"
 monkey_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/monkey/monkey.obj"
-solo8_urdf_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/solo8_URDF_v4/solo8_v5.urdf"
+solo8_urdf_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/solo8_URDF_v6/solo8.urdf"
 dummy_inertia = np.zeros([3, 3])
 np.fill_diagonal(dummy_inertia, 0.1)
 
