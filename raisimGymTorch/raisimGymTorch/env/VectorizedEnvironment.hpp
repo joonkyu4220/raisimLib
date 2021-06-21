@@ -103,6 +103,13 @@ class VectorizedEnvironment {
     }
   }
 
+  void timeLimitReset() {
+    for (int i = 0; i < num_envs_; i++) {
+      if (environments_[i]->time_limit_reached())
+        environments_[i]->reset();
+    }
+  }
+
   void setSimulationTimeStep(double dt) {
     for (auto *env: environments_)
       env->setSimulationTimeStep(dt);
@@ -116,6 +123,14 @@ class VectorizedEnvironment {
   int getObDim() { return obDim_; }
   int getActionDim() { return actionDim_; }
   int getNumOfEnvs() { return num_envs_; }
+
+  Eigen::VectorXf getTotalRewards() {
+    Eigen::VectorXf totalRewards(num_envs_);
+    for (int i = 0; i < num_envs_; i++) {
+      totalRewards[i] = environments_[i]->get_total_reward();
+    }
+    return totalRewards;
+  }
 
   ////// optional methods //////
   void curriculumUpdate() {

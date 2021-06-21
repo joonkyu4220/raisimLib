@@ -61,6 +61,8 @@ class RaisimGymEnv {
   void startRecordingVideo(const std::string& videoName ) { server_->startRecordingVideo(videoName); }
   void stopRecordingVideo() { server_->stopRecordingVideo(); }
   raisim::Reward& getRewards() { return rewards_; }
+  bool time_limit_reached() {return false;};
+  float get_total_reward() {return 0;};
 
  protected:
   std::unique_ptr<raisim::World> world_;
@@ -69,6 +71,7 @@ class RaisimGymEnv {
   std::string resourceDir_;
   Yaml::Node cfg_;
   int obDim_=0, actionDim_=0;
+  int sim_step_, max_sim_step_;
   std::unique_ptr<raisim::RaisimServer> server_;
   raisim::Reward rewards_;
 };
