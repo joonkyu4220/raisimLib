@@ -39,7 +39,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     /// set pd gains
     Eigen::VectorXd jointPgain(gvDim_), jointDgain(gvDim_);
-    jointPgain.setZero(); jointPgain.tail(nJoints_).setConstant(3.0);
+    jointPgain.setZero(); jointPgain.tail(nJoints_).setConstant(3.0);  //3.0 for biped
     jointDgain.setZero(); jointDgain.tail(nJoints_).setConstant(0.2);
     solo8_->setPdGains(jointPgain, jointDgain);
     solo8_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
@@ -62,6 +62,15 @@ class ENVIRONMENT : public RaisimGymEnv {
     // footIndices_.insert(solo8_->getBodyIdx("HL_FOOT"));
     // footIndices_.insert(solo8_->getBodyIdx("HR_FOOT"));
 
+    // sphere_ = world_->addSphere(0.4, 0.8);
+    // sphere_->setAppearance("1,0,0,1");
+    // sphere_->setPosition(0.0, 0.0, 0.4);
+    // sphere_->setBodyType(raisim::BodyType::STATIC);
+    // box_ = world_->addBox(0.5, 0.3, 0.3, 2);
+    // box_->setAppearance("1,0,0,1");
+    // box_->setPosition(0.7, 0.0, 0.15);
+    // box_->setBodyType(raisim::BodyType::STATIC);
+
 
     /// visualize if it is the first environment
     if (visualizable_) {
@@ -74,27 +83,42 @@ class ENVIRONMENT : public RaisimGymEnv {
   void init() final { }
 
   void reset() final {
-    speed = 0.0;//(double(rand() % 8) - 2.0) / 10.0;
+    speed = 1.0;//(double(rand() % 8) - 2.0) / 10.0;
     mode_ = 0;//rand() % 2;
-    if (mode_ == 0) {
-      phase_ = 0;//rand() % (max_phase_/4);
-      max_phase_ = 60;
-      sim_step_ = 0;
-      total_reward_ = 0;
-      gv_init_[0] = speed;
-      gv_init_[4] = -20 * std::sin(3.1415 * phase_ / max_phase_ * 4.0);
-      setReferenceMotion();
-    }
-    else {
-      max_phase_ = 30;
-      phase_ = rand() % max_phase_;
-      sim_step_ = 0;
-      total_reward_ = 0;
-      gv_init_[0] = speed;
-      gv_init_[4] = 0;
-      setReferenceMotionBipedalMode();
-    }
+    
+    // get up mode
+    // if (mode_ == 0) {
+    //   phase_ = 0;//rand() % (max_phase_/4);
+    //   max_phase_ = 60;
+    //   sim_step_ = 0;
+    //   total_reward_ = 0;
+    //   gv_init_[0] = speed;
+    //   gv_init_[4] = -20 * std::sin(3.1415 * phase_ / max_phase_ * 4.0);
+    //   setReferenceMotion();
+    // }
+    // else {
+    //   max_phase_ = 30;
+    //   phase_ = rand() % max_phase_;
+    //   sim_step_ = 0;
+    //   total_reward_ = 0;
+    //   gv_init_[0] = 0.0;
+    //   gv_init_[4] = 0;
+    //   setReferenceMotionBipedalMode();
+    // }
+
+    //quadrupedal mode
+    max_phase_ = 30;
+    phase_ = rand() % (max_phase_);
+    sim_step_ = 0;
+    total_reward_ = 0;
+    gv_init_[0] = speed;
+    gv_init_[2] = 0.75 * std::sin(2.0 * 3.1415 * phase_ / max_phase_);
+    setReferenceMotion();
+    mode_ = 0;
+
     solo8_->setState(reference_, gv_init_);
+    // sphere_->setPosition(0.0, 0.0, 0.4);
+    // sphere_->setVelocity(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     updateObservation();
   }
 
@@ -104,7 +128,11 @@ class ENVIRONMENT : public RaisimGymEnv {
     else
       setReferenceMotionBipedalMode();
     /// action scaling
-    pTarget12_ = action.cast<double>();
+    pTarget12_ = 1.0 * action.cast<double>();
+    pTarget12_[2] = pTarget12_[0] * 1.0;
+    pTarget12_[3] = pTarget12_[1] * 1.0;
+    pTarget12_[6] = pTarget12_[4] * 1.0;
+    pTarget12_[7] = pTarget12_[5] * 1.0;
     pTarget12_ = pTarget12_.cwiseProduct(actionStd_);
     pTarget12_ += actionMean_;
     pTarget12_ += reference_.tail(nJoints_);
@@ -122,11 +150,11 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     phase_ += 1;
     sim_step_ += 1;
-    if (phase_ > max_phase_ / 4 && mode_ == 0){
-      phase_ = 0;
-      mode_ = 1;
-      max_phase_ = 30;
-    }
+    // if (phase_ > max_phase_ / 4 && mode_ == 0){
+    //   phase_ = 0;
+    //   mode_ = 1;
+    //   max_phase_ = 30;
+    // }
     if (phase_ > max_phase_) {
       phase_ = 0;
     }
@@ -146,11 +174,12 @@ class ENVIRONMENT : public RaisimGymEnv {
     for (int j = 0; j < 4; j++) {
       joint_reward += std::pow(gc_[7+j*2]-reference_[7+j*2], 2) + std::pow(gc_[8+j*2]-reference_[8+j*2], 2);
     }
-    position_reward += 1.0 * std::pow(gv_[0]-speed, 2) + std::pow(gc_[1]-reference_[1], 2) + std::pow(gc_[2]-reference_[2], 2);
+    position_reward += 10.0 * std::pow(gv_[0]-speed, 2) + std::pow(gc_[1]-reference_[1], 2) + 100 * std::pow(gc_[2]-reference_[2], 2);
     orientation_reward += 2 * (std::pow(gc_[4]-reference_[4], 2) + std::pow(gc_[5]-reference_[5], 2) + std::pow(gc_[6]-reference_[6], 2));
     orientation_reward += 5 * (std::pow(gv_[3], 2) + std::pow(gv_[4], 2) + std::pow(gv_[5], 2));
-    // position_reward = 5 * std::pow(gc_[2]-0.53, 2);
-    // orientation_reward = 2 * (std::pow(gc_[4]-0.0, 2) + std::pow(gc_[5]+0.7071068, 2) + std::pow(gc_[6]-0.0, 2)); 
+
+    // position_reward = 1.0 * std::pow(gv_[0]-speed, 2) + std::pow(gc_[1]-reference_[1], 2) + 10 * std::pow(gv_[2]-0.0, 2);
+    // orientation_reward = 2 * (std::pow(gv_[3]-0.0, 2) + std::pow(gv_[4]-0.0, 2) + std::pow(gv_[5]-0.0, 2)); 
     rewards_.record("position", std::exp(-position_reward));
     rewards_.record("orientation", std::exp(-orientation_reward));
     rewards_.record("joint", std::exp(-3*joint_reward));
@@ -166,6 +195,9 @@ class ENVIRONMENT : public RaisimGymEnv {
     bodyLinearVel_ = rot.e().transpose() * gv_.segment(0, 3);
     bodyAngularVel_ = rot.e().transpose() * gv_.segment(3, 3);
 
+    raisim::Vec<3> ball_vel1, ball_vel2;
+    // sphere_->getVelocity(ball_vel1, ball_vel2);
+
     obDouble_ << gc_[2], /// body height
         gc_[3], gc_[4], gc_[5], gc_[6], /// body orientation
         gc_.tail(8), /// joint angles
@@ -174,6 +206,7 @@ class ENVIRONMENT : public RaisimGymEnv {
         std::cos(phase_ * 3.1415 * 2 / max_phase_), std::sin(phase_ * 3.1415 * 2 / max_phase_), // phase
         speed, //speed
         mode_;
+        // ball_vel2[0], ball_vel2[1], ball_vel2[2];
   }
 
   void observe(Eigen::Ref<EigenVec> ob) final {
@@ -201,7 +234,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     raisim::Mat<3,3> rot;
     quat[0] = gc_[3]; quat[1] = gc_[4]; quat[2] = gc_[5]; quat[3] = gc_[6];
     raisim::quatToRotMat(quat, rot);
-    if (std::abs(gc_[4]) > 0.2 || std::abs(gc_[6]) > 0.2)// || std::abs(gc_[5] + 0.7071068) > 0.3)// || std::abs(gc_[4]) > 0.5 || std::abs(gc_[5]) > 0.5 || std::abs(gc_[6]) > 0.5 || rewards_.sum() < 0.5)
+    if (std::abs(gc_[4]) > 0.2 || std::abs(gc_[6]) > 0.2 || std::abs(gc_[5]) > 0.2 || rewards_.sum() < 0.5)// || std::abs(gc_[5] + 0.7071068) > 0.3)// || std::abs(gc_[4]) > 0.5 || std::abs(gc_[5]) > 0.5 || std::abs(gc_[6]) > 0.5 || rewards_.sum() < 0.5)
       return true;
     if (mode_ == 1 && gc_[2] < 0.3)
       return true;
@@ -211,56 +244,66 @@ class ENVIRONMENT : public RaisimGymEnv {
   }
 
   void setReferenceMotion() {
+    // get up mode
+    // reference_ *= 0;
+    // reference_[0] = speed * 0.02 * sim_step_;
+
+    // raisim::Vec<4> quat;
+    // raisim::Vec<3> euler;
+    // euler[0] = 0;
+    // euler[2] = 0;
+    // euler[1] = std::max(-std::sin(2.0*3.1415*std::min(phase_*1.0, 2.0 * max_phase_/4.0)/max_phase_/2.0) * 3.1415, -3.1415 / 2);
+    // raisim::eulerVecToQuat(euler, quat);
+    
+    // reference_[3] = quat[0];
+    // reference_[4] = quat[1];
+    // reference_[5] = quat[2];
+    // reference_[6] = quat[3];
+    
+    // reference_[2] = 0.2 + 0.32 * std::sin(2.0*3.1415*phase_/max_phase_) + 0.3;
+    // reference_[0] = 0.7;
+
+    // reference_[7+4] = 0.65 + 0.92 * std::sin(2.0*3.1415*phase_/max_phase_);
+    // reference_[7+6] = 0.65 + 0.92 * std::sin(2.0*3.1415*phase_/max_phase_);
+
+    // reference_[7] = 0.65; 
+    // reference_[8] = -2.0 + 2.0 * std::min(std::sin(2.0*3.1415*std::min(phase_*1.0, 2.0 * max_phase_/4.0)/max_phase_/2.0) * 3.1415, 3.1415 / 2);
+    // reference_[9] = 0.65;
+    // reference_[10] = -2.0 + 2.0 * std::min(std::sin(2.0*3.1415*std::min(phase_*1.0, 2.0 * max_phase_/4.0)/max_phase_/2.0) * 3.1415, 3.1415 / 2);
+
+    // reference_[12] = -2.0 + std::sin(2.0*3.1415*phase_/max_phase_);
+    // reference_[14] = -2.0 + std::sin(2.0*3.1415*phase_/max_phase_);
+    
+    //quadrupedal_mode
     reference_ *= 0;
     reference_[0] = speed * 0.02 * sim_step_;
-
-    raisim::Vec<4> quat;
-    raisim::Vec<3> euler;
-    euler[0] = 0;
-    euler[2] = 0;
-    euler[1] = std::max(-std::sin(2.0*3.1415*std::min(phase_*1.0, 2.0 * max_phase_/4.0)/max_phase_/2.0) * 3.1415, -3.1415 / 2);
-    raisim::eulerVecToQuat(euler, quat);
-    
-    reference_[3] = quat[0];
-    reference_[4] = quat[1];
-    reference_[5] = quat[2];
-    reference_[6] = quat[3];
-    
-    reference_[2] = 0.2 + 0.32 * std::sin(2.0*3.1415*phase_/max_phase_);
-
-    reference_[7+4] = 0.65 + 0.92 * std::sin(2.0*3.1415*phase_/max_phase_);
-    reference_[7+6] = 0.65 + 0.92 * std::sin(2.0*3.1415*phase_/max_phase_);
-
-    reference_[7] = 0.65; 
-    reference_[8] = -2.0 + 2.0 * std::min(std::sin(2.0*3.1415*std::min(phase_*1.0, 2.0 * max_phase_/4.0)/max_phase_/2.0) * 3.1415, 3.1415 / 2);
-    reference_[9] = 0.65;
-    reference_[10] = -2.0 + 2.0 * std::min(std::sin(2.0*3.1415*std::min(phase_*1.0, 2.0 * max_phase_/4.0)/max_phase_/2.0) * 3.1415, 3.1415 / 2);
-
-    reference_[12] = -2.0 + std::sin(2.0*3.1415*phase_/max_phase_);
-    reference_[14] = -2.0 + std::sin(2.0*3.1415*phase_/max_phase_);
-    //quadrupedal_mode
-    // for (int i = 0; i < 4; i++) {
-    //   if (phase_ <= max_phase_ / 2) {
-    //     if (i == 0 || i == 2) {
-    //       reference_[7+i*2] = 0.65;
-    //       reference_[8+i*2] = -1.0;
-    //     }
-    //     else {
-    //       reference_[7+i*2] = 0.65 - 0.2 * speed * std::sin(2.0*3.1415*phase_/max_phase_);
-    //       reference_[8+i*2] = -1.0 - 0.7 * std::sin(2.0*3.1415*phase_/max_phase_);
-    //     }
-    //   }
-    //   else{
-    //     if (i == 0 or i == 2) {
-    //       reference_[7+i*2] = 0.65 - 0.2 * speed * std::sin(2.0*3.1415*phase_/max_phase_ - 3.1415);
-    //       reference_[8+i*2] = -1.0 - 0.7 * std::sin(2.0*3.1415*phase_/max_phase_ - 3.1415);
-    //     }
-    //     else {
-    //       reference_[7+i*2] = 0.65;
-    //       reference_[8+i*2] = -1.0;
-    //     }
-    //   }
-    // }
+    reference_[2] = 0.18 + 0.3 * std::sin(3.1415 * phase_ / max_phase_);
+    reference_[3] = 1.0;
+    reference_[4] = 0.0;
+    reference_[5] = 0.0;
+    reference_[6] = 0.0;
+    for (int i = 0; i < 4; i++) {
+      if (phase_ <= max_phase_) {
+        if (i > 4) {
+          reference_[7+i*2] = 0.65;
+          reference_[8+i*2] = -1.0;
+        }
+        else {
+          reference_[7+i*2] = 0.65 - 0.2 * speed * std::sin(3.1415*phase_/max_phase_);
+          reference_[8+i*2] = -2.0 + 1.5 * std::sin(3.1415*phase_/max_phase_);
+        }
+      }
+      else{
+        if (i == 0 || i == 1 || i == 2 || i == 3) {
+          reference_[7+i*2] = 0.65 - 0.2 * speed * std::sin(2.0*3.1415*phase_/max_phase_ - 3.1415);
+          reference_[8+i*2] = -1.0 - 0.7 * std::sin(2.0*3.1415*phase_/max_phase_ - 3.1415);
+        }
+        else {
+          reference_[7+i*2] = 0.65;
+          reference_[8+i*2] = -1.0;
+        }
+      }
+    }
   }
 
   void setReferenceMotionBipedalMode() {
@@ -296,6 +339,8 @@ class ENVIRONMENT : public RaisimGymEnv {
   int gcDim_, gvDim_, nJoints_;
   bool visualizable_ = false;
   raisim::ArticulatedSystem* solo8_;
+  // raisim::Sphere* sphere_;
+  raisim::Box* box_;
   Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget12_, vTarget_;
   Eigen::VectorXd reference_;
   int phase_ = 0;

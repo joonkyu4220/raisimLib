@@ -36,7 +36,7 @@ if __name__ == '__main__':
    num_inputs = env.observation_space.shape[0]
    num_outputs = env.action_space.shape[0]
    model = ActorCriticNet(num_inputs, num_outputs, [128, 128])
-   model.load_state_dict(torch.load("stats/solo8_July10/iter7900.pt"))
+   model.load_state_dict(torch.load("stats/solo8_July15/iter7700.pt"))
    model.cuda()
    model.set_noise(-2.5 * np.ones(num_outputs))
 
@@ -47,7 +47,9 @@ if __name__ == '__main__':
          act = model.sample_best_actions(obs)
       obs, rew, done, _ = env.step(act)
 
-      import time; time.sleep(0.02)
-      if i % 100 == 0:
-         env.reset()
-      print(rew, done)
+      print(rew[0])
+
+      import time; time.sleep(0.2)
+      # if i % 100 == 0:
+      #    env.reset()
+      # print(rew, done)
