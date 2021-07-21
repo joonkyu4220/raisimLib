@@ -83,7 +83,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   void init() final { }
 
   void reset() final {
-    speed = 1.0;//(double(rand() % 8) - 2.0) / 10.0;
+    speed = 0.5;//(double(rand() % 8) - 2.0) / 10.0;
     mode_ = 0;//rand() % 2;
     
     // get up mode
@@ -108,11 +108,11 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     //quadrupedal mode
     max_phase_ = 30;
-    phase_ = rand() % (max_phase_);
+    phase_ = (rand() % 2) * max_phase_ / 2;
     sim_step_ = 0;
     total_reward_ = 0;
     gv_init_[0] = speed;
-    gv_init_[2] = 0.75 * std::sin(2.0 * 3.1415 * phase_ / max_phase_);
+    gv_init_[2] = 0;//0.75 * std::sin(2.0 * 3.1415 * phase_ / max_phase_);
     setReferenceMotion();
     mode_ = 0;
 
@@ -123,19 +123,21 @@ class ENVIRONMENT : public RaisimGymEnv {
   }
 
   float step(const Eigen::Ref<EigenVec>& action) final {
-    if (mode_ == 0)
-      setReferenceMotion();
-    else
-      setReferenceMotionBipedalMode();
+    solo8_->getState(gc_, gv_);
+    energy_reward_ = 0;
+    // if (mode_ == 0)
+    //   setReferenceMotion();
+    // else
+    //   setReferenceMotionBipedalMode();
     /// action scaling
-    pTarget12_ = 1.0 * action.cast<double>();
+    pTarget12_ = 2 * action.cast<double>() + gc_.tail(8);
     pTarget12_[2] = pTarget12_[0] * 1.0;
     pTarget12_[3] = pTarget12_[1] * 1.0;
     pTarget12_[6] = pTarget12_[4] * 1.0;
     pTarget12_[7] = pTarget12_[5] * 1.0;
     pTarget12_ = pTarget12_.cwiseProduct(actionStd_);
     pTarget12_ += actionMean_;
-    pTarget12_ += reference_.tail(nJoints_);
+    // pTarget12_ += reference_.tail(nJoints_);
     pTarget_.tail(nJoints_) = pTarget12_;
 
     // solo8_->setState(reference_, gv_init_);
@@ -145,6 +147,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
       if(server_) server_->lockVisualizationServerMutex();
       world_->integrate();
+      energy_reward_ += solo8_->getGeneralizedForce().squaredNorm();
       if(server_) server_->unlockVisualizationServerMutex();
     }
 
@@ -166,6 +169,9 @@ class ENVIRONMENT : public RaisimGymEnv {
     computeReward();
     total_reward_ += rewards_.sum();
 
+    if (speed < 0.5)
+      speed += 0.01;
+
     return rewards_.sum();
   }
 
@@ -174,16 +180,43 @@ class ENVIRONMENT : public RaisimGymEnv {
     for (int j = 0; j < 4; j++) {
       joint_reward += std::pow(gc_[7+j*2]-reference_[7+j*2], 2) + std::pow(gc_[8+j*2]-reference_[8+j*2], 2);
     }
-    position_reward += 10.0 * std::pow(gv_[0]-speed, 2) + std::pow(gc_[1]-reference_[1], 2) + 100 * std::pow(gc_[2]-reference_[2], 2);
+    // position_reward += 10.0 * std::pow(gv_[0]-speed, 2) + std::pow(gc_[1]-reference_[1], 2) + 100 * std::pow(gc_[2]-reference_[2], 2);
     orientation_reward += 2 * (std::pow(gc_[4]-reference_[4], 2) + std::pow(gc_[5]-reference_[5], 2) + std::pow(gc_[6]-reference_[6], 2));
     orientation_reward += 5 * (std::pow(gv_[3], 2) + std::pow(gv_[4], 2) + std::pow(gv_[5], 2));
 
-    // position_reward = 1.0 * std::pow(gv_[0]-speed, 2) + std::pow(gc_[1]-reference_[1], 2) + 10 * std::pow(gv_[2]-0.0, 2);
+    //contact base reward
+    float contact_reward = 0.0;
+    for(auto& contact: solo8_->getContacts()) {
+      if (phase_ <= max_phase_ / 8 * 3 && phase_ >= max_phase_ / 8 * 1) {
+        if(solo8_->getBodyIdx("FL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("FR_LOWER_LEG") == contact.getlocalBodyIndex()) {
+          contact_reward += 0.1 * std::pow(contact.getImpulse()[2], 2);
+          raisim::Vec<3> vel1, vel2;
+          solo8_->getFrameVelocity(solo8_->getFrameIdxByName("HL_ANKLE"), vel1);
+          solo8_->getFrameVelocity(solo8_->getFrameIdxByName("HR_ANKLE"), vel2);
+          contact_reward += 0.01 * std::pow(vel1[0], 2);
+          contact_reward += 0.01 * std::pow(vel2[0], 2);
+        }
+      }
+      else if (phase_ <= max_phase_ / 8 * 7 && phase_ >= max_phase_ / 8 * 5) {
+        if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
+          contact_reward += 0.1 * std::pow(contact.getImpulse()[2], 2);
+          raisim::Vec<3> vel1, vel2;
+          solo8_->getFrameVelocity(solo8_->getFrameIdxByName("FL_ANKLE"), vel1);
+          solo8_->getFrameVelocity(solo8_->getFrameIdxByName("FR_ANKLE"), vel2);
+          contact_reward += 0.01 * std::pow(vel1[0], 2);
+          contact_reward += 0.01 * std::pow(vel2[0], 2);
+        }
+      }
+    }
+
+    position_reward = 5.0 * std::pow(gv_[0]-speed, 2) + std::pow(gc_[1]-reference_[1], 2) + 0.0 * std::pow(gv_[2]-0.0, 2);
+    // std::cout << gv_[2]-0.0 << std::endl;
     // orientation_reward = 2 * (std::pow(gv_[3]-0.0, 2) + std::pow(gv_[4]-0.0, 2) + std::pow(gv_[5]-0.0, 2)); 
     rewards_.record("position", std::exp(-position_reward));
     rewards_.record("orientation", std::exp(-orientation_reward));
     rewards_.record("joint", std::exp(-3*joint_reward));
-    rewards_.record("torque", solo8_->getGeneralizedForce().squaredNorm());
+    rewards_.record("torque", energy_reward_);
+    rewards_.record("contact", contact_reward);
   }
 
   void updateObservation() {
@@ -234,7 +267,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     raisim::Mat<3,3> rot;
     quat[0] = gc_[3]; quat[1] = gc_[4]; quat[2] = gc_[5]; quat[3] = gc_[6];
     raisim::quatToRotMat(quat, rot);
-    if (std::abs(gc_[4]) > 0.2 || std::abs(gc_[6]) > 0.2 || std::abs(gc_[5]) > 0.2 || rewards_.sum() < 0.5)// || std::abs(gc_[5] + 0.7071068) > 0.3)// || std::abs(gc_[4]) > 0.5 || std::abs(gc_[5]) > 0.5 || std::abs(gc_[6]) > 0.5 || rewards_.sum() < 0.5)
+    if (std::abs(gc_[4]) > 0.2 || std::abs(gc_[6]) > 0.2 || std::abs(gc_[5]) > 0.2 || gc_[2] < 0.2)// || std::abs(gc_[5] + 0.7071068) > 0.3)// || std::abs(gc_[4]) > 0.5 || std::abs(gc_[5]) > 0.5 || std::abs(gc_[6]) > 0.5 || rewards_.sum() < 0.5)
       return true;
     if (mode_ == 1 && gc_[2] < 0.3)
       return true;
@@ -277,7 +310,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     //quadrupedal_mode
     reference_ *= 0;
     reference_[0] = speed * 0.02 * sim_step_;
-    reference_[2] = 0.18 + 0.3 * std::sin(3.1415 * phase_ / max_phase_);
+    reference_[2] = 0.3; //+ 0.3 * std::sin(3.1415 * phase_ / max_phase_); for ponking
     reference_[3] = 1.0;
     reference_[4] = 0.0;
     reference_[5] = 0.0;
@@ -289,8 +322,8 @@ class ENVIRONMENT : public RaisimGymEnv {
           reference_[8+i*2] = -1.0;
         }
         else {
-          reference_[7+i*2] = 0.65 - 0.2 * speed * std::sin(3.1415*phase_/max_phase_);
-          reference_[8+i*2] = -2.0 + 1.5 * std::sin(3.1415*phase_/max_phase_);
+          reference_[7+i*2] = 0.65;// - 0.2 * speed * std::sin(3.1415*phase_/max_phase_);
+          reference_[8+i*2] = -1.0;// - 0.7 * std::sin(2.0*3.1415*phase_/max_phase_ - 3.1415);//-2.0 + 1.5 * std::sin(3.1415*phase_/max_phase_);
         }
       }
       else{
@@ -344,7 +377,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget12_, vTarget_;
   Eigen::VectorXd reference_;
   int phase_ = 0;
-  int max_phase_ = 60;
+  int max_phase_ = 80;
   int sim_step_ = 0;
   int max_sim_step_ = 300;
   double total_reward_ = 0;
@@ -354,5 +387,6 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
   std::set<size_t> footIndices_;
   int mode_ = 0;
+  float energy_reward_ = 0;
 };
 }
