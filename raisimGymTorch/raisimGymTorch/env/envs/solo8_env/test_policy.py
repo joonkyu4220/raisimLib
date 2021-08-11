@@ -36,20 +36,29 @@ if __name__ == '__main__':
    num_inputs = env.observation_space.shape[0]
    num_outputs = env.action_space.shape[0]
    model = ActorCriticNet(num_inputs, num_outputs, [128, 128])
-   model.load_state_dict(torch.load("stats/solo8_July15/iter7700.pt"))
+   model_v2 = ActorCriticNet(num_inputs, num_outputs, [128, 128])
+   # model.load_state_dict(torch.load("stats/solo8_July21_symmetry/iter9400.pt"))
+   model.load_state_dict(torch.load("stats/solo8_Aug02_flip/iter3800.pt"))
+   model_v2.load_state_dict(torch.load("stats/solo8_Aug11_flip_v2/iter2700.pt"))
+   # model.load_state_dict(torch.load("stats/solo8_Aug02_flip/iter9900.pt"))
    model.cuda()
+   model_v2.cuda()
    model.set_noise(-2.5 * np.ones(num_outputs))
 
    env.reset()
    obs = env.observe()
    for i in range(10000000):
       with torch.no_grad():
-         act = model.sample_best_actions(obs)
+         if i <= 60:
+            act = model.sample_best_actions(obs)
+         else:
+            act = model_v2.sample_best_actions(obs)
+         # act[:, 1] = 0.2 
       obs, rew, done, _ = env.step(act)
 
-      print(rew[0])
+      print(obs[0, :])
 
-      import time; time.sleep(0.2)
-      # if i % 100 == 0:
+      import time; time.sleep(0.1)
+      # if i % 60 == 0:
       #    env.reset()
       # print(rew, done)
