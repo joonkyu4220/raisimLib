@@ -84,7 +84,7 @@ class ENVIRONMENT : public RaisimGymEnv {
       gv_init_[0] = speed;
       if (phase_ != 0)
         gv_init_[4] = -5;
-      setFlipMotion();
+      //setFlipMotion();
     }
     else {
       max_phase_ = 30;
@@ -101,9 +101,9 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   float step(const Eigen::Ref<EigenVec>& action) final {
     if (sim_step_ < 60)
-      setFlipMotion();
+      setFlipMotionModular("AAB");
     else
-      setFlipMotion_v2();
+      setFlipMotionModular("CDD");
     // if (mode_ == 0)
     //   setFlipMotion();
     // else
@@ -142,7 +142,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     if (sim_step_ == 60) {
       flip_obs_ = true;
       phase_ = 0;
-      setFlipMotion_v2();
+      //setFlipMotion_v2();
       solo8_->setState(reference_, gv_init_);
     }
     // if (phase_ > max_phase_ / 4 && mode_ == 0){
@@ -353,6 +353,95 @@ class ENVIRONMENT : public RaisimGymEnv {
     }
     reference_[7] = 1.57 + std::sin(2.0*3.1415*phase_/max_phase_);
     reference_[9] = 1.57 + std::sin(2.0*3.1415*phase_/max_phase_ + 3.1415);
+  }
+
+  void setFlipMotionModular(const char* sequence) {
+
+    Eigen::Vector3d base_pos;
+    Eigen::Vector3d base_pos_init;
+    Eigen::Vector4d base_angle_axis;
+    Eigen::Vector4d base_quat;
+
+    Eigen::Vector2d joint_front;
+    Eigen::Vector2d joint_front_init;
+    Eigen::Vector2d joint_front_mid;
+    Eigen::Vector2d joint_front_final;
+    Eigen::Vector2d joint_hind;
+
+    double half_body_length = 0.178; // from URDF
+    base_pos_init << 0.0, 0.0, 0.25;
+    double hip_init = 0.65;
+    double knee_init = 1.5;
+
+    // goes from 0 to pi over course of flip motion (ie as phase goes from 0 to max_phase_/2)
+    double theta = (double)phase_/max_phase_ * 2*M_PI;
+
+    base_pos <<
+      // base_pos_init(0) + half_body_length*std::cos(theta),
+      base_pos_init(0) + speed * 0.02 * sim_step_,
+      base_pos_init(1),
+      base_pos_init(2) + half_body_length*std::sin(theta);
+
+    base_angle_axis << -theta, 0.0, 1.0, 0.0;
+    
+    // set front leg trajectory points to interpolate from
+    joint_front_init(0) = (sequence[0] == 'A' || sequence[0] == 'C') ? -hip_init : hip_init;
+    joint_front_init(1) = (sequence[0] == 'A' || sequence[0] == 'C') ? knee_init : -knee_init;
+
+    joint_front_mid(0) = (sequence[1] == 'A' || sequence[1] == 'C') ? M_PI/2.0 : -M_PI/2.0;
+    joint_front_mid(1) = 0.0;
+
+    joint_front_final(0) = (sequence[2] == 'A' || sequence[2] == 'C') ? -hip_init + M_PI : hip_init + M_PI;
+    joint_front_final(1) = (sequence[2] == 'A' || sequence[2] == 'C') ? knee_init : -knee_init;
+    joint_front_final(0) += (sequence[1] == 'A' || sequence[1] == 'C') ? 0 : -2.0*M_PI; // account for angle wrap
+
+    // linearly interpolate between joint_front_init, joint_front_mid, and joint_front_final to get current joint_front
+    if (phase_ <= max_phase_/4) {
+      // interp goes from 0.0 to 1.0 as phase goes from 0 to max_phase_/4
+      double interp = (double)phase_ / (max_phase_/4.0);
+      joint_front << joint_front_init*(1.0-interp) + joint_front_mid*(interp);
+    } else {
+      // interp goes from 0.0 to 1.0 as phase goes from max_phase_/4 to max_phase_/2
+      double interp = (double)(phase_ - max_phase_/4.0) / (max_phase_/4.0);
+      joint_front << joint_front_mid*(1.0-interp) + joint_front_final*(interp);
+    }
+
+    // absolute hind leg angle remains constant--no need to interpolate
+    joint_hind(0) = (sequence[0] == 'A' || sequence[0] == 'B') ? -hip_init + theta : hip_init + theta;
+    joint_hind(1) = (sequence[0] == 'A' || sequence[0] == 'B') ? knee_init : -knee_init;
+
+    if (flip_obs_) {
+      // TODO: may want to constrain angles within some range to account for periodicity
+      // rotate base 180 about y axis
+      base_angle_axis(0) += M_PI;
+
+      // rotate hip joints 180
+      joint_front(0) += M_PI;
+      joint_hind(0) += M_PI;
+
+      // switch front and hind trajectories
+      Eigen::Vector2d old_joint_front;
+      Eigen::Vector2d old_joint_hind;
+      old_joint_front << joint_front;
+      old_joint_hind << joint_hind;
+      joint_front << old_joint_hind;
+      joint_hind << old_joint_front;
+    }
+
+    // calculate quaternion from angle-axis representation
+    // http://www.quaternionmath.com/representations/axis-and-angle
+    base_quat <<
+      std::cos(base_angle_axis[0]/2.0),
+      base_angle_axis(1)*std::sin(base_angle_axis(0)/2.0),
+      base_angle_axis(2)*std::sin(base_angle_axis(0)/2.0),
+      base_angle_axis(3)*std::sin(base_angle_axis(0)/2.0);
+
+    reference_.segment(0,3) << base_pos;
+    reference_.segment(3,4) << base_quat;
+    reference_.segment(7,2) << joint_front;
+    reference_.segment(9,2) << joint_front;
+    reference_.segment(11,2) << joint_hind;
+    reference_.segment(13,2) << joint_hind;
   }
 
   void setFlipMotion_v2() {
