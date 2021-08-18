@@ -77,14 +77,14 @@ class ENVIRONMENT : public RaisimGymEnv {
     speed = 0.0;//(double(rand() % 8) - 2.0) / 10.0;
     mode_ = 0;//rand() % 2;
     if (mode_ == 0) {
-      phase_ = 0;//(rand() % 2) * (max_phase_/4);
+      phase_ = (rand() % 2) * (max_phase_/2);
       max_phase_ = 60;
       sim_step_ = 0;
       total_reward_ = 0;
       gv_init_[0] = speed;
-      if (phase_ != 0)
-        gv_init_[4] = -5;
-      //setFlipMotion();
+      // if (phase_ != 0)
+      //   gv_init_[4] = -5;
+      setFlipMotionModular("DDD");
     }
     else {
       max_phase_ = 30;
@@ -101,7 +101,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   float step(const Eigen::Ref<EigenVec>& action) final {
     if (sim_step_ < 60)
-      setFlipMotionModular("AAB");
+      setFlipMotionModular("DDD");
     else
       setFlipMotionModular("CDD");
     // if (mode_ == 0)
@@ -119,7 +119,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     pTarget12_ += reference_.tail(nJoints_);
     pTarget_.tail(nJoints_) = pTarget12_;
 
-    solo8_->setState(reference_, gv_init_);
+    // solo8_->setState(reference_, gv_init_);
 
     solo8_->setPdTarget(pTarget_, vTarget_);
 
@@ -131,20 +131,26 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     phase_ += 1;
     sim_step_ += 1;
-    if (phase_ > max_phase_ / 2 && mode_ == 0 && !flip_obs_){
+    if (phase_ > max_phase_ / 2){
       phase_ = max_phase_ / 2;
       mode_ = 0;
       max_phase_ = 60;
     }
-    else if (phase_ > max_phase_ / 2) {
-      phase_ = max_phase_ / 2;
-    }
-    if (sim_step_ == 60) {
-      flip_obs_ = true;
-      phase_ = 0;
-      //setFlipMotion_v2();
-      solo8_->setState(reference_, gv_init_);
-    }
+    // if (phase_ > max_phase_ / 2 && mode_ == 0 && !flip_obs_){
+    //   phase_ = max_phase_ / 2;
+    //   mode_ = 0;
+    //   max_phase_ = 60;
+    // }
+    // else if (phase_ > max_phase_ / 2) {
+    //   phase_ = max_phase_ / 2;
+    // }
+    // if (sim_step_ == 60) {
+    //   flip_obs_ = true;
+    //   phase_ = 0;
+    //   //setFlipMotion_v2();
+    //   solo8_->setState(reference_, gv_init_);
+    // }
+    
     // if (phase_ > max_phase_ / 4 && mode_ == 0){
     //   phase_ = 0;
     //   mode_ = 1;
@@ -206,7 +212,7 @@ class ENVIRONMENT : public RaisimGymEnv {
         std::cos(phase_ * 3.1415 * 2 / max_phase_), std::sin(phase_ * 3.1415 * 2 / max_phase_), // phase
         speed, //speed
         mode_;
-    std::cout << flip_obs_ << std::endl;
+    // std::cout << flip_obs_ << std::endl;
     if (flip_obs_) {
       double euler[3];
       double quat_2[4];
@@ -253,21 +259,21 @@ class ENVIRONMENT : public RaisimGymEnv {
     if (mode_ == 1 && gc_[2] < 0.3)
       return true;
 
-    // int counter = 0;
-    // int contact_id = 0;
-    // raisim::Vec<3> contact_vel;
-    // for(auto& contact: solo8_->getContacts()) {
-    //   solo8_->getContactPointVel(contact_id, contact_vel);
-    //   if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
-    //     counter += 1;
-    //     // if (contact_vel.squaredNorm() > 0.1)
-    //     //   return true;
-    //   }
-    //   contact_id++;
-    // }
-    // // std::cout << counter << std::endl;
-    // if (counter < 2)
-    //   return true;
+    int counter = 0;
+    int contact_id = 0;
+    raisim::Vec<3> contact_vel;
+    for(auto& contact: solo8_->getContacts()) {
+      solo8_->getContactPointVel(contact_id, contact_vel);
+      if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
+        counter += 1;
+        if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
+          return true;
+      }
+      contact_id++;
+    }
+    // std::cout << counter << std::endl;
+    if (counter < 2)
+      return true;
 
     terminalReward = 0.f;
     return false;
@@ -435,6 +441,8 @@ class ENVIRONMENT : public RaisimGymEnv {
       base_angle_axis(1)*std::sin(base_angle_axis(0)/2.0),
       base_angle_axis(2)*std::sin(base_angle_axis(0)/2.0),
       base_angle_axis(3)*std::sin(base_angle_axis(0)/2.0);
+    if (base_quat[0] < 0)
+      base_quat *= -1.0;
 
     reference_.segment(0,3) << base_pos;
     reference_.segment(3,4) << base_quat;
@@ -590,7 +598,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   int phase_ = 0;
   int max_phase_ = 60;
   int sim_step_ = 0;
-  int max_sim_step_ = 10000;
+  int max_sim_step_ = 60;
   double total_reward_ = 0;
   double terminalRewardCoeff_ = 0.;
   double speed = 0.0;
