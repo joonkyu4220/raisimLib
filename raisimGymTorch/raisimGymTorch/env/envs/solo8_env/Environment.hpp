@@ -112,8 +112,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     /// action scaling
     pTarget12_ = action.cast<double>() * 1;
     if (flip_obs_) {
-      pTarget12_.segment(0, 4) = action.cast<double>().segment(4, 8);
-      pTarget12_.segment(4, 8) = action.cast<double>().segment(0, 4);
+      pTarget12_.segment(0, 4) = action.cast<double>().segment(4, 4);
+      pTarget12_.segment(4, 4) = action.cast<double>().segment(0, 4);
     }
     pTarget12_[2] = pTarget12_[0] * 1.0;
     pTarget12_[3] = pTarget12_[1] * 1.0;
@@ -239,11 +239,13 @@ class ENVIRONMENT : public RaisimGymEnv {
       obDouble_.segment(9, 4) << old_obs.segment(5, 4);
       obDouble_.segment(20, 4) << old_obs.segment(24, 4);
       obDouble_.segment(24, 4) << old_obs.segment(20, 4);
-      //reflect joint
-      for (int i = 0; i < 4; i++) {
-        obDouble_[5+2*i] = -(3.1415 - obDouble_[5+2*i]);
-        // obDouble_[6+2*i] = -obDouble_[6+2*i];
-      }
+
+      // subtract 180 from front hip
+      obDouble_(5) -= M_PI;
+      obDouble_(7) -= M_PI;
+      // add 180 from hind hip
+      obDouble_(9) += M_PI;
+      obDouble_(11) += M_PI;
     }
   }
 
@@ -443,6 +445,7 @@ class ENVIRONMENT : public RaisimGymEnv {
       // rotate hip joints 180
       joint_front(0) += M_PI;
       joint_hind(0) += M_PI;
+      joint_hind(0) -= 2*M_PI;
 
       // switch front and hind trajectories
       Eigen::Vector2d old_joint_front;
