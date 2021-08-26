@@ -74,6 +74,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   void init() final { }
 
   void reset() final {
+    flip_obs_ = false;
     speed = 0.0;//(double(rand() % 8) - 2.0) / 10.0;
     mode_ = 0;//rand() % 2;
     if (mode_ == 0) {
@@ -103,13 +104,17 @@ class ENVIRONMENT : public RaisimGymEnv {
     if (sim_step_ < 60)
       setFlipMotionModular("DDD");
     else
-      setFlipMotionModular("CDD");
+      setFlipMotionModular("DDD");
     // if (mode_ == 0)
     //   setFlipMotion();
     // else
     //   setReferenceMotionBipedalMode();
     /// action scaling
     pTarget12_ = action.cast<double>() * 1;
+    if (flip_obs_) {
+      pTarget12_.segment(0, 4) = action.cast<double>().segment(4, 8);
+      pTarget12_.segment(4, 8) = action.cast<double>().segment(0, 4);
+    }
     pTarget12_[2] = pTarget12_[0] * 1.0;
     pTarget12_[3] = pTarget12_[1] * 1.0;
     pTarget12_[6] = pTarget12_[4] * 1.0;
@@ -144,12 +149,12 @@ class ENVIRONMENT : public RaisimGymEnv {
     // else if (phase_ > max_phase_ / 2) {
     //   phase_ = max_phase_ / 2;
     // }
-    // if (sim_step_ == 60) {
-    //   flip_obs_ = true;
-    //   phase_ = 0;
-    //   //setFlipMotion_v2();
-    //   solo8_->setState(reference_, gv_init_);
-    // }
+    if (sim_step_ == 60) {
+      flip_obs_ = true;
+      phase_ = 0;
+      //setFlipMotion_v2();
+      // solo8_->setState(reference_, gv_init_);
+    }
     
     // if (phase_ > max_phase_ / 4 && mode_ == 0){
     //   phase_ = 0;
@@ -214,6 +219,9 @@ class ENVIRONMENT : public RaisimGymEnv {
         mode_;
     // std::cout << flip_obs_ << std::endl;
     if (flip_obs_) {
+      Eigen::VectorXd old_obs;
+      old_obs = obDouble_.replicate(1, 1);
+
       double euler[3];
       double quat_2[4];
       quat_2[0] = gc_[3], quat_2[1] = gc_[4], quat_2[2] = gc_[5], quat_2[3] = gc_[6];
@@ -223,8 +231,19 @@ class ENVIRONMENT : public RaisimGymEnv {
       euler_2[0] = euler[0]; euler_2[1] = euler[1]; euler_2[2] = euler[2];
       raisim::eulerVecToQuat(euler_2, quat);
       obDouble_[1] = quat[0], obDouble_[2] = quat[1], obDouble_[3] = quat[2], obDouble_[4] = quat[3];
-      obDouble_[5] = 3.1415 - obDouble_[5], obDouble_[7] = 3.1415 - obDouble_[7], obDouble_[9] = 3.1415 - obDouble_[9], obDouble_[11] = 3.1415 - obDouble_[11];
-      obDouble_[6] = -obDouble_[6]; obDouble_[8] = -obDouble_[8]; obDouble_[10] = -obDouble_[10]; obDouble_[12] = -obDouble_[12];
+      if (quat[0] < 0)
+        obDouble_.segment(1, 4) *= -1;
+      
+      //relabel joint
+      obDouble_.segment(5, 4) << old_obs.segment(9, 4);
+      obDouble_.segment(9, 4) << old_obs.segment(5, 4);
+      obDouble_.segment(20, 4) << old_obs.segment(24, 4);
+      obDouble_.segment(24, 4) << old_obs.segment(20, 4);
+      //reflect joint
+      for (int i = 0; i < 4; i++) {
+        obDouble_[5+2*i] = -(3.1415 - obDouble_[5+2*i]);
+        // obDouble_[6+2*i] = -obDouble_[6+2*i];
+      }
     }
   }
 
@@ -259,21 +278,21 @@ class ENVIRONMENT : public RaisimGymEnv {
     if (mode_ == 1 && gc_[2] < 0.3)
       return true;
 
-    int counter = 0;
-    int contact_id = 0;
-    raisim::Vec<3> contact_vel;
-    for(auto& contact: solo8_->getContacts()) {
-      solo8_->getContactPointVel(contact_id, contact_vel);
-      if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
-        counter += 1;
-        if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
-          return true;
-      }
-      contact_id++;
-    }
-    // std::cout << counter << std::endl;
-    if (counter < 2)
-      return true;
+    // int counter = 0;
+    // int contact_id = 0;
+    // raisim::Vec<3> contact_vel;
+    // for(auto& contact: solo8_->getContacts()) {
+    //   solo8_->getContactPointVel(contact_id, contact_vel);
+    //   if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
+    //     counter += 1;
+    //     if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
+    //       return true;
+    //   }
+    //   contact_id++;
+    // }
+    // // std::cout << counter << std::endl;
+    // if (counter < 2)
+    //   return true;
 
     terminalReward = 0.f;
     return false;
@@ -598,7 +617,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   int phase_ = 0;
   int max_phase_ = 60;
   int sim_step_ = 0;
-  int max_sim_step_ = 60;
+  int max_sim_step_ = 1000;
   double total_reward_ = 0;
   double terminalRewardCoeff_ = 0.;
   double speed = 0.0;
