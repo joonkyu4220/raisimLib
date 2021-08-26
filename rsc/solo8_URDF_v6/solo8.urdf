@@ -50,7 +50,7 @@
     <axis xyz="0 1 0"/>
     <origin rpy="0 0 0" xyz="0.19 0.1046 0"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="FL_UPPER_LEG">
     <!-- Left upper leg inertia -->
@@ -95,7 +95,7 @@
     <axis xyz="0 1 0"/>
     <origin rpy="0 0 0" xyz="0 0.037450000000000004 -0.16"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="FL_LOWER_LEG">
     <!-- Left lower leg inertia -->
@@ -139,7 +139,7 @@
     <!-- Limits (usefull?) -->
     <limit effort="1000" lower="-10" upper="10" velocity="1000"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="FL_FOOT">
     <!-- FOOT INERTIAL -->
@@ -186,7 +186,7 @@
     <axis xyz="0 1 0"/>
     <origin rpy="0 0 0" xyz="0.19 -0.1046 0"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="FR_UPPER_LEG">
     <!-- Right upper leg inertia -->
@@ -231,7 +231,7 @@
     <axis xyz="0 1 0"/>
     <origin rpy="0 0 0" xyz="0 -0.037450000000000004 -0.16"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="FR_LOWER_LEG">
     <!-- Right lower leg inertia -->
@@ -275,7 +275,7 @@
     <!-- Limits (usefull?) -->
     <limit effort="1000" lower="-10" upper="10" velocity="1000"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="FR_FOOT">
     <!-- FOOT INERTIAL -->
@@ -322,7 +322,7 @@
     <axis xyz="0 1 0"/>
     <origin rpy="0 0 0" xyz="-0.19 0.1046 0"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="HL_UPPER_LEG">
     <!-- Left upper leg inertia -->
@@ -367,7 +367,7 @@
     <axis xyz="0 1 0"/>
     <origin rpy="0 0 0" xyz="0 0.037450000000000004 -0.16"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="HL_LOWER_LEG">
     <!-- Left lower leg inertia -->
@@ -411,7 +411,7 @@
     <!-- Limits (usefull?) -->
     <limit effort="1000" lower="-10" upper="10" velocity="1000"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="HL_FOOT">
     <!-- FOOT INERTIAL -->
@@ -458,7 +458,7 @@
     <axis xyz="0 1 0"/>
     <origin rpy="0 0 0" xyz="-0.19 -0.1046 0"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="HR_UPPER_LEG">
     <!-- Right upper leg inertia -->
@@ -503,7 +503,7 @@
     <axis xyz="0 1 0"/>
     <origin rpy="0 0 0" xyz="0 -0.037450000000000004 -0.16"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="HR_LOWER_LEG">
     <!-- Right lower leg inertia -->
@@ -547,7 +547,7 @@
     <!-- Limits (usefull?) -->
     <limit effort="1000" lower="-10" upper="10" velocity="1000"/>
     <!-- pybullet simulation parameters -->
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0" rotor_inertia="0.000632"/>
   </joint>
   <link name="HR_FOOT">
     <!-- FOOT INERTIAL -->

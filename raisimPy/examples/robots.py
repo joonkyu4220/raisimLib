@@ -47,13 +47,16 @@ solo8.setName("solo8")
 solo8_nominal_joint_config = np.zeros(solo8.getGeneralizedCoordinateDim())
 print(solo8_nominal_joint_config)
 solo8_nominal_joint_config[0] = 0
-solo8_nominal_joint_config[2] = 5
+solo8_nominal_joint_config[2] = 0.35
 solo8_nominal_joint_config[3] = 1
 solo8.setGeneralizedCoordinate(solo8_nominal_joint_config)
-solo8.setPdGains(200*np.ones([14]), np.ones([14]))
+solo8.setPdGains(2*np.ones([14]), 0.2*np.ones([14]))
 solo8.setPdTarget(solo8_nominal_joint_config, np.zeros([14]))
 
 server.launchServer(8080)
+obj = world.addSphere(0.2, 0.8)
+obj.setPosition(0, 0, 0.2)
+# import ipdb; ipdb.set_trace()
 
 # for i in range(5):
 #     for j in range(5):
@@ -84,7 +87,58 @@ world.integrate1()
 # jaco_foot_lh_linear = anymal.getDenseFrameJacobian("LF_ADAPTER_TO_FOOT")
 # jaco_foot_lh_angular = anymal.getDenseFrameRotationalJacobian("LF_ADAPTER_TO_FOOT")
 
+reference = np.zeros(15)
+reference[2] = 0.55
+reference[3] = 0.7071068
+reference[5] = -0.7071068
+t = 0
+period = 30
+
 for i in range(5000000):
-    world.integrate()
+	for j in range(4):
+		if t <= period / 2:
+			if j == 0 or j == 3:
+				reference[7+j*2] = 0.65
+				reference[8+j*2] = -1.0
+			else:
+				reference[7+j*2] = 0.65
+				reference[8+j*2] = -1.0 - 0.7 * np.sin(2.0*np.pi*t/period)
+		else:
+			if j == 0 or j == 3:
+				reference[7+j*2] = 0.65
+				reference[8+j*2] = -1.0 - 0.7 * np.sin(2.0*np.pi*t/period - np.pi)
+			else:
+				reference[7+j*2] = 0.65
+				reference[8+j*2] = -1.0
+	reference[7+4] = 1.57
+	reference[7+6] = 1.57
+	reference[8+4] = 0
+	reference[8+6] = 0
+	reference[2] = 0.53 + 0.4
+	if t <= period / 2:
+		reference[7+4] = 1.57 - 0.7 * np.sin(2.0*np.pi*t/period)
+		reference[8+4] = 0 + 0.7 * np.sin(2.0*np.pi*t/period)
+	else:
+		reference[7+6] = 1.57 - 0.7 * np.sin(2.0*np.pi*t/period - np.pi)
+		reference[8+6] = 0 + 0.7 * np.sin(2.0*np.pi*t/period - np.pi)
+	reference[7] = 1.57 + np.sin(2.0*np.pi*t/period)
+	reference[9] = 1.57 + np.sin(2.0*np.pi*t/period + np.pi)
+	if i == 0:
+		solo8.setGeneralizedCoordinate(reference)
+	solo8.setPdTarget(reference, np.zeros([14]))
+
+	fl_id = solo8.getFrameIdxByName("FL_ANKLE")
+
+	print(solo8.getFrameVelocity(fl_id))
+
+	# import ipdb; ipdb.set_trace()
+
+	# for _ in range(10):
+	world.integrate()
+	import time; time.sleep(0.02)
+	t += 1
+	if t > period:
+		t = 0
+
 
 server.killServer()

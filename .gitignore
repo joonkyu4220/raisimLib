@@ -20,3 +20,5 @@ examples/cmake-build*/*
 **/activation.raisim
 data/*
 **/.DS_Store
+
+*.so

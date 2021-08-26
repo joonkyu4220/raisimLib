@@ -155,6 +155,11 @@ class ENVIRONMENT : public RaisimGymEnv {
       //setFlipMotion_v2();
       // solo8_->setState(reference_, gv_init_);
     }
+    else if (sim_step_ == 120) {
+      flip_obs_ = false;
+      phase_ = 0;
+      sim_step_ = 0;
+    }
     
     // if (phase_ > max_phase_ / 4 && mode_ == 0){
     //   phase_ = 0;

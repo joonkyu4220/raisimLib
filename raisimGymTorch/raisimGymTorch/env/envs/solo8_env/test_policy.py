@@ -40,7 +40,7 @@ if __name__ == '__main__':
    # model.load_state_dict(torch.load("stats/solo8_July21_symmetry/iter9400.pt"))
    model.load_state_dict(torch.load("stats/solo8_Aug02_flip/iter3800.pt"))
    model_v2.load_state_dict(torch.load("stats/solo8_Aug11_flip_v2/iter2700.pt"))
-   # model.load_state_dict(torch.load("stats/solo8_Aug02_flip/iter9900.pt"))
+   model.load_state_dict(torch.load("stats/solo8_Aug17_flip_AAB//iter3200.pt"))
    model.cuda()
    model_v2.cuda()
    model.set_noise(-2.5 * np.ones(num_outputs))
@@ -49,12 +49,13 @@ if __name__ == '__main__':
    obs = env.observe()
    for i in range(10000000):
       with torch.no_grad():
-         if i <= 60:
+         if i <= 30:
             act = model.sample_best_actions(obs)
          else:
-            act = model_v2.sample_best_actions(obs)
+            act = model.sample_best_actions(obs)
          # act[:, 1] = 0.2 
       obs, rew, done, _ = env.step(act)
+      env.reset_time_limit()
 
       print(obs[0, :])
 
