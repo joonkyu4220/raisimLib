@@ -116,10 +116,11 @@ class ENVIRONMENT : public RaisimGymEnv {
       pTarget12_.segment(0, 4) = action.cast<double>().segment(4, 4);
       pTarget12_.segment(4, 4) = action.cast<double>().segment(0, 4);
     }
-    pTarget12_[2] = pTarget12_[0] * 1.0;
-    pTarget12_[3] = pTarget12_[1] * 1.0;
-    pTarget12_[6] = pTarget12_[4] * 1.0;
-    pTarget12_[7] = pTarget12_[5] * 1.0;
+    // pTarget12_[2] = pTarget12_[0] * 1.0;
+    // pTarget12_[3] = pTarget12_[1] * 1.0;
+    // pTarget12_[6] = pTarget12_[4] * 1.0;
+    // pTarget12_[7] = pTarget12_[5] * 1.0;
+
     pTarget12_ = pTarget12_.cwiseProduct(actionStd_);
     pTarget12_ += actionMean_;
     pTarget12_ += reference_.tail(nJoints_);
@@ -243,8 +244,9 @@ class ENVIRONMENT : public RaisimGymEnv {
       //relabel joint
       obDouble_.segment(5, 4) << old_obs.segment(9, 4);
       obDouble_.segment(9, 4) << old_obs.segment(5, 4);
-      obDouble_.segment(20, 4) << old_obs.segment(24, 4);
-      obDouble_.segment(24, 4) << old_obs.segment(20, 4);
+      obDouble_.segment(19, 4) << old_obs.segment(23, 4);
+      obDouble_.segment(23, 4) << old_obs.segment(19, 4);
+
 
       // subtract 180 from front hip
       obDouble_(5) -= M_PI;
@@ -284,6 +286,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     if (std::abs(gc_[4]) > 0.2 || std::abs(gc_[6]) > 0.2)// || std::abs(gc_[5] + 0.7071068) > 0.3)// || std::abs(gc_[4]) > 0.5 || std::abs(gc_[5]) > 0.5 || std::abs(gc_[6]) > 0.5 || rewards_.sum() < 0.5)
       return true;
     if (mode_ == 1 && gc_[2] < 0.3)
+      return true;
+    if (std::abs(gc_[2]) < 0.1)
       return true;
 
     int counter = 0;
