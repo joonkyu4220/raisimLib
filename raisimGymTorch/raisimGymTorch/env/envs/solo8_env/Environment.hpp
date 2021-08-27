@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <set>
+#include <random>
 #include "../../RaisimGymEnv.hpp"
 
 namespace raisim {
@@ -285,21 +286,30 @@ class ENVIRONMENT : public RaisimGymEnv {
     if (mode_ == 1 && gc_[2] < 0.3)
       return true;
 
-    // int counter = 0;
-    // int contact_id = 0;
-    // raisim::Vec<3> contact_vel;
-    // for(auto& contact: solo8_->getContacts()) {
-    //   solo8_->getContactPointVel(contact_id, contact_vel);
-    //   if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
-    //     counter += 1;
-    //     if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
-    //       return true;
-    //   }
-    //   contact_id++;
-    // }
-    // // std::cout << counter << std::endl;
-    // if (counter < 2)
-    //   return true;
+    int counter = 0;
+    int contact_id = 0;
+    raisim::Vec<3> contact_vel;
+    for(auto& contact: solo8_->getContacts()) {
+      solo8_->getContactPointVel(contact_id, contact_vel);
+      if (!flip_obs_) {
+        if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
+          counter += 1;
+          if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
+            return true;
+        }
+      }
+      else {
+        if(solo8_->getBodyIdx("FL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("FR_LOWER_LEG") == contact.getlocalBodyIndex()) {
+          counter += 1;
+          if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
+            return true;
+        }
+      }
+      contact_id++;
+    }
+    // std::cout << counter << std::endl;
+    if (counter < 2)
+      return true;
 
     terminalReward = 0.f;
     return false;
@@ -625,7 +635,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   int phase_ = 0;
   int max_phase_ = 60;
   int sim_step_ = 0;
-  int max_sim_step_ = 1000;
+  int max_sim_step_ = 300;
   double total_reward_ = 0;
   double terminalRewardCoeff_ = 0.;
   double speed = 0.0;
