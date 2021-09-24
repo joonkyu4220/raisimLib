@@ -138,6 +138,12 @@ class VectorizedEnvironment {
       env->curriculumUpdate();
   };
 
+  void setEnvironmentTask() {
+    for (int i = 0; i < num_envs_; i++) {
+      environments_[i]->setEnvironmentTask(i % 2);
+    } 
+  }
+
   const std::vector<std::map<std::string, float>>& getRewardInfo() { return rewardInformation_; }
 
  private:

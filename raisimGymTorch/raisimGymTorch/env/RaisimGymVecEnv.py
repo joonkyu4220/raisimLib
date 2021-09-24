@@ -228,6 +228,9 @@ class RaisimGymVecTorchEnv:
     def curriculum_callback(self):
         self.wrapper.curriculumUpdate()
 
+    def setTask(self):
+        self.wrapper.setEnvironmentTask()
+
     @property
     def num_envs(self):
         return self.wrapper.getNumOfEnvs()
