@@ -57,6 +57,7 @@ class VectorizedEnvironment {
 
     obDim_ = environments_[0]->getObDim();
     actionDim_ = environments_[0]->getActionDim();
+    stateDim_ = environments_[0]->getStateDim();
     RSFATAL_IF(obDim_ == 0 || actionDim_ == 0, "Observation/Action dimension must be defined in the constructor of each environment!")
   }
 
@@ -70,6 +71,12 @@ class VectorizedEnvironment {
 #pragma omp parallel for
     for (int i = 0; i < num_envs_; i++)
       environments_[i]->observe(ob.row(i));
+  }
+
+  void getState(Eigen::Ref<EigenRowMajorMat> &ob) {
+#pragma omp parallel for
+    for (int i = 0; i < num_envs_; i++)
+      environments_[i]->getState(ob.row(i));
   }
 
   void step(Eigen::Ref<EigenRowMajorMat> &action,
@@ -122,6 +129,7 @@ class VectorizedEnvironment {
 
   int getObDim() { return obDim_; }
   int getActionDim() { return actionDim_; }
+  int getStateDim() { return stateDim_; }
   int getNumOfEnvs() { return num_envs_; }
 
   Eigen::VectorXf getTotalRewards() {
@@ -168,7 +176,7 @@ class VectorizedEnvironment {
   std::vector<std::map<std::string, float>> rewardInformation_;
 
   int num_envs_ = 1;
-  int obDim_ = 0, actionDim_ = 0;
+  int obDim_ = 0, actionDim_ = 0, stateDim_ = 0;
   bool recordVideo_=false, render_=false;
   std::string resourceDir_;
   Yaml::Node cfg_;

@@ -156,6 +156,9 @@ class RaisimGymVecTorchEnv:
         self._done_torch = torch.zeros(self.num_envs, dtype=torch.int32, device=device)
 
         self.total_rewards = torch.zeros(self.num_envs, dtype=torch.float32, device=device)
+        self.num_states = self.wrapper.getStateDim()
+        self._state = np.zeros([self.num_envs, self.num_states], dtype=np.float32)
+        self._state_torch = torch.zeros(self.num_envs, self.num_states, dtype=torch.float32, device=device)
 
         # time limit
         self.t = torch.zeros(self.num_envs, dtype=torch.int32)
@@ -230,6 +233,11 @@ class RaisimGymVecTorchEnv:
 
     def setTask(self):
         self.wrapper.setEnvironmentTask()
+
+    def get_state(self):
+        self.wrapper.getState(self._state)
+        self._state_torch[:, :] = torch.from_numpy(self._state[: ,:]).to(device)
+        return self._state_torch[:, :]
 
     @property
     def num_envs(self):

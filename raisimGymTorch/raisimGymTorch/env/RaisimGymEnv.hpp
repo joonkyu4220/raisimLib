@@ -48,12 +48,14 @@ class RaisimGymEnv {
   virtual void setEnvironmentTask(int i) {};
   virtual void close() { if(server_) server_->killServer(); };
   virtual void setSeed(int seed) {};
+  virtual void getState(Eigen::Ref<EigenVec> ob) {};
   ////////////////////////////////
 
   void setSimulationTimeStep(double dt) { simulation_dt_ = dt; world_->setTimeStep(dt); }
   void setControlTimeStep(double dt) { control_dt_ = dt; }
   int getObDim() { return obDim_; }
   int getActionDim() { return actionDim_; }
+  int getStateDim() {return stateDim_;}
   double getControlTimeStep() { return control_dt_; }
   double getSimulationTimeStep() { return simulation_dt_; }
   raisim::World* getWorld() { return world_.get(); }
@@ -71,7 +73,7 @@ class RaisimGymEnv {
   double control_dt_ = 0.01;
   std::string resourceDir_;
   Yaml::Node cfg_;
-  int obDim_=0, actionDim_=0;
+  int obDim_=0, actionDim_=0, stateDim_=0;
   int sim_step_, max_sim_step_;
   std::unique_ptr<raisim::RaisimServer> server_;
   raisim::Reward rewards_;
