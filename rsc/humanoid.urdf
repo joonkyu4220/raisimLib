@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
 <robot name="dumpUrdf">
+  <material name="default"/>
 
   <link name="base" >
     <inertial>
@@ -45,12 +46,14 @@
       <origin rpy = "0 0 0" xyz = "0.000000 0.120000 0.000000" />
       <geometry>
         <sphere radius = "0.110000" />
+        <!-- <box size="0.13 0.3 0.2"/> -->
       </geometry>
     </collision>
     <visual>
       <origin rpy = "0 0 0" xyz = "0.000000 0.120000 0.000000" />
       <geometry>
         <sphere radius = "0.110000" />
+        <!-- <box size="0.13 0.3 0.2"/> -->
       </geometry>
     </visual>
   </link>
@@ -155,6 +158,9 @@
       <geometry>
         <box size="0.177000 0.055000 0.090000" />
       </geometry>
+      <material name="">
+        <contact name="default"/>
+      </material>
     </collision>
     <visual>
       <origin rpy = "0 0 0" xyz = "0.045000 -0.022500 0.000000" />
@@ -345,6 +351,9 @@
       <geometry>
         <capsule length="0.180000" radius="0.045000"/>
       </geometry>
+      <material name="">
+        <contact name="default"/>
+      </material>
     </collision>
     <visual>
       <origin rpy = "-1.570796 0 0" xyz = "0.000000 -0.140000 0.000000" />

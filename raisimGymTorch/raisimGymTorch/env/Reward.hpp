@@ -57,6 +57,13 @@ class Reward {
     return sum;
   }
 
+  float multiply() {
+    float mul = 1.f;
+    for (auto& rw: rewards_)
+      mul *= rw.second.reward;
+    return mul;
+  }
+
   void setZero() {
     for(auto& rw: rewards_)
       rw.second.reward = 0.f;
