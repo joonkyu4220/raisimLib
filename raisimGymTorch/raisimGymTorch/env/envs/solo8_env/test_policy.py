@@ -41,7 +41,7 @@ if __name__ == '__main__':
    # model.load_state_dict(torch.load("stats/solo8_Aug02_flip/iter3800.pt"))
    # model_v2.load_state_dict(torch.load("stats/solo8_Aug11_flip_v2/iter2700.pt"))
    # model.load_state_dict(torch.load("stats/solo8_Aug17_flip_AAB//iter3200.pt"))
-   model.load_state_dict(torch.load("stats/solo8_Aug27_assym_flip_DDD//iter6900.pt"))
+   model.load_state_dict(torch.load("stats/solo8_Aug27_assym_flip_DDD//iter5100.pt"))
    # model.load_state_dict(torch.load("stats/solo8_Aug26_flip_DDD//iter9900.pt"))
    # model.load_state_dict(torch.load("stats/solo8_Aug26_flip_DDD//iter9900.pt"))
    model.cuda()
@@ -60,7 +60,7 @@ if __name__ == '__main__':
       env.reset_time_limit() 
       # print(i, obs[0, :])
 
-      import time; time.sleep(0.1)
+      import time; time.sleep(0.02)
       # if i % 60 == 0:
       #    env.reset()
       # print(rew, done)

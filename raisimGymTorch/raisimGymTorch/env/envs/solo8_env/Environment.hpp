@@ -290,30 +290,30 @@ class ENVIRONMENT : public RaisimGymEnv {
     if (std::abs(gc_[2]) < 0.1)
       return true;
 
-    int counter = 0;
-    int contact_id = 0;
-    raisim::Vec<3> contact_vel;
-    for(auto& contact: solo8_->getContacts()) {
-      solo8_->getContactPointVel(contact_id, contact_vel);
-      if (!flip_obs_) {
-        if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
-          counter += 1;
-          if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
-            return true;
-        }
-      }
-      else {
-        if(solo8_->getBodyIdx("FL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("FR_LOWER_LEG") == contact.getlocalBodyIndex()) {
-          counter += 1;
-          if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
-            return true;
-        }
-      }
-      contact_id++;
-    }
-    // std::cout << counter << std::endl;
-    if (counter < 2)
-      return true;
+    // int counter = 0;
+    // int contact_id = 0;
+    // raisim::Vec<3> contact_vel;
+    // for(auto& contact: solo8_->getContacts()) {
+    //   solo8_->getContactPointVel(contact_id, contact_vel);
+    //   if (!flip_obs_) {
+    //     if(solo8_->getBodyIdx("HL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("HR_LOWER_LEG") == contact.getlocalBodyIndex()) {
+    //       counter += 1;
+    //       if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
+    //         return true;
+    //     }
+    //   }
+    //   else {
+    //     if(solo8_->getBodyIdx("FL_LOWER_LEG") == contact.getlocalBodyIndex() || solo8_->getBodyIdx("FR_LOWER_LEG") == contact.getlocalBodyIndex()) {
+    //       counter += 1;
+    //       if (phase_ > 5 and contact_vel.squaredNorm() > 0.3)
+    //         return true;
+    //     }
+    //   }
+    //   contact_id++;
+    // }
+    // // std::cout << counter << std::endl;
+    // if (counter < 2)
+    //   return true;
 
     terminalReward = 0.f;
     return false;
