@@ -134,6 +134,7 @@
     <child link="right_leg"/>
     <origin xyz="0.0 0.0 -0.45"/>
     <axis xyz="0 1 0"/>
+    <limit effort="200" lower="-0.1" upper="2.62" velocity="28.6"/>
   </joint>
 
   <link name="right_foot">
@@ -224,6 +225,7 @@
     <child link="left_leg"/>
     <origin xyz="0.0 0.0 -0.45"/>
     <axis xyz="0 1 0"/>
+    <limit effort="200" lower="-0.1" upper="2.62" velocity="28.6"/>
   </joint>
 
   <link name="left_foot">

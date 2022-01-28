@@ -4,6 +4,7 @@ import sys
 sys.path.append('/home/zhaoming/Documents/open_robot/raisim_build/lib')
 import raisimpy as raisim
 import time
+from scipy.spatial.transform import Rotation as R
 
 raisim.World.setLicenseFile(os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/activation.raisim")
 anymal_urdf_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/anymal/urdf/anymal.urdf"
@@ -87,7 +88,7 @@ world.setMaterialPairProp("default", "ball", 1.0, 0.8, 0.01)
 obj = world.addSphere(0.11, 0.45, material="ball")
 obj.setPosition(0., 0, 4)
 
-server.launchServer(8080)
+server.launchServer(8081)
 # obj = world.addSphere(0.2, 0.8)
 # obj.setPosition(0, 0, 0.2)
 # import ipdb; ipdb.set_trace()
@@ -131,8 +132,10 @@ period = 30
 import pandas as pd
 from axis_to_quaternion import *
 
-with open('Input.txt') as f:
+with open('030004_001_20_T_ST_0100_2_JM_Player2/Input.txt') as f:
 	data = f.readlines()
+# with open('Data/4_CR_JUGGLE_1St001_01_Player1_Standard/Input.txt') as f:
+# 	data = f.readlines()
 
 def coordinate_transform(q):
 	q[0:4] = q[[0, 3, 1, 2]]
@@ -146,45 +149,68 @@ def rotate_translation(x):
 	x[1] = -x[1]
 	return x
 
+starting_frame = 414
+num_frame = 30
+record_data = np.zeros([num_frame, 46])
 
-for i in range(5000000):
+while True:
+	for i in range(starting_frame, starting_frame+num_frame):
 
-	frame =  int(i / 2)
+		frame =  i#int(i / 2)
 
-	from scipy.spatial.transform import Rotation as R
+		from scipy.spatial.transform import Rotation as R
 
-	frame_data = np.asarray(data[frame].split(' ')).astype(float)
+		frame_data = np.asarray(data[frame].split(' ')).astype(float)
 
-	# print(frame_data)
-	reference[0:15] = frame_data[0:15]
-	reference[15:19] = frame_data[15:19]
-	reference[19] = frame_data[19]
-	reference[20:24] = frame_data[24:28]
-	reference[24] = frame_data[28]
-	reference[25:43] = frame_data[33:51]
+		# print(frame_data)
+		reference[0:15] = frame_data[0:15]
+		reference[15:19] = frame_data[15:19]
+		reference[19] = frame_data[19]
+		reference[20:24] = frame_data[24:28]
+		reference[24] = frame_data[28]
+		reference[25:43] = frame_data[33:51]
 
-	reference[19] = -reference[19] / 180 * 3.1415
-	reference[24] = -reference[24] / 180 * 3.1415
-	reference[29] = -reference[29] / 180 * 3.1415
-	reference[38] = -reference[38] / 180 * 3.1415
-	reference[3:7] = coordinate_transform(reference[3:7])
-	reference[15:19] = coordinate_transform(reference[15:19])
-	reference[20:24] = coordinate_transform(reference[20:24])
-	reference[25:29] = coordinate_transform(reference[25:29])
-	reference[30:34] = coordinate_transform(reference[30:34])
-	reference[34:38] = coordinate_transform(reference[34:38])
-	reference[39:43] = coordinate_transform(reference[39:43])
-	reference[0:3] = rotate_translation(reference[0:3])
-	# reference[2] += 0
-	walker.setGeneralizedCoordinate(reference)
-	walker.setPdTarget(reference, np.zeros([walker.getDOF()]))
-	obj.setPosition(frame_data[53], -frame_data[51], frame_data[52])
-	# print(reference[0:3], frame_data[51], frame_data[53], frame_data[52])
-	world.integrate()
-	import time; time.sleep(0.01)
-	t += 1
-	if t > period:
-		t = 0
+		reference[19] = -reference[19] / 180 * 3.1415
+		reference[24] = -reference[24] / 180 * 3.1415
+		reference[29] = -reference[29] / 180 * 3.1415
+		reference[38] = -reference[38] / 180 * 3.1415
+		reference[3:7] = coordinate_transform(reference[3:7])
+		reference[15:19] = coordinate_transform(reference[15:19])
+		reference[20:24] = coordinate_transform(reference[20:24])
+		reference[25:29] = coordinate_transform(reference[25:29])
+		reference[30:34] = coordinate_transform(reference[30:34])
+		reference[34:38] = coordinate_transform(reference[34:38])
+		reference[39:43] = coordinate_transform(reference[39:43])
+		reference[0:3] = rotate_translation(reference[0:3])
+		
+		#rotate the frame of robot to align with global frame
+		if i == starting_frame:
+			base_rot = R.from_quat([0.707, 0, 0, 0.707]).as_matrix()
+			r = R.from_quat(reference[[4,5,6,3]])
+			rotation = base_rot.dot(r.as_matrix().T)
+			translation = rotation.dot(reference[0:3]) - np.array([0, 0, 0.9])
+		r = R.from_quat(reference[[4,5,6,3]])
+		reference[3:7] = R.from_matrix(rotation.dot(r.as_matrix())).as_quat()[[3,0,1,2]]
+		reference[0:3] = rotation.dot(reference[0:3]) - translation
+		ball_reference = np.array([frame_data[53], -frame_data[51], frame_data[52]])
+		ball_reference = rotation.dot(ball_reference) - translation
+
+		walker.setState(reference, np.zeros([walker.getDOF()]))
+		walker.setPdTarget(reference, np.zeros([walker.getDOF()]))
+		obj.setPosition(ball_reference[0], ball_reference[1], ball_reference[2])
+		obj.setVelocity(0, 0, 0, 0, 0, 0)
+		# print(reference[0:3], frame_data[51], frame_data[53], frame_data[52])
+		print(i)
+		world.integrate()
+		import time; time.sleep(0.04)
+		t += 1
+		if t > period:
+			t = 0
+		record_data[frame-starting_frame, 0:43] = reference[:].copy()
+		record_data[frame-starting_frame, 43:46] = ball_reference[:].copy()
+		print(frame, ball_reference[:])
+	#print(record_data)
+	np.savetxt('data.txt', record_data, fmt='%f')
 
 
 server.killServer()
