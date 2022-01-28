@@ -5,7 +5,6 @@
 
 #ifndef RAISIM_RAISIMSERVER_HPP
 #define RAISIM_RAISIMSERVER_HPP
-#include <chrono>
 
 #if defined __linux__ || __APPLE__
 #include <arpa/inet.h>
@@ -41,6 +40,8 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <future>
+#include <chrono>
 
 #include "raisim/World.hpp"
 #include "raisim/helper.hpp"
@@ -73,29 +74,31 @@ struct PolyLine {
 };
 
 struct ArticulatedSystemVisual {
-  ArticulatedSystemVisual(const std::string &urdfFile) : obj(new ArticulatedSystem(urdfFile)) {
+  ArticulatedSystemVisual(const std::string &urdfFile) : obj (urdfFile) {
     color.setZero();
   }
 
+  ~ArticulatedSystemVisual() = default;
+
   /**
-   * @param[in] r red value (max 1)
-   * @param[in] g green value (max 1)
-   * @param[in] b blue value (max 1)
-   * @param[in] a alpha value (max 1)
+   * @param[in] r red value (max=1)
+   * @param[in] g green value (max=1)
+   * @param[in] b blue value (max=1)
+   * @param[in] a alpha value (max=1)
    * set color. if the alpha value is 0, it uses the original color defined in the mesh file */
   void setColor(double r, double g, double b, double a) {
     color = {r,g,b,a};
   }
 
   /**
-   * @param[in] gc the generalized coordinate (max 1)
+   * @param[in] gc the generalized coordinate
    * set the configuration of the visualized articulated system */
   void setGeneralizedCoordinate(const Eigen::VectorXd& gc) {
-    obj->setGeneralizedCoordinate(gc);
+    obj.setGeneralizedCoordinate(gc);
   }
 
   raisim::Vec<4> color;
-  std::unique_ptr<ArticulatedSystem> obj;
+  ArticulatedSystem obj;
 };
 
 struct Visuals {
@@ -111,6 +114,7 @@ struct Visuals {
   VisualType type;
   std::string name;
   std::string material;
+  std::string meshFileName;
   bool glow = true;
   bool shadow = false;
 
@@ -257,14 +261,14 @@ class RaisimServer final {
   }
 
   ~RaisimServer() {
-    for (auto &vis : _visualObjects)
-      delete vis.second;
-
-    for (auto &vis : _polyLines)
-      delete vis.second;
-
-    for (auto &vis : _visualArticulatedSystem)
-      delete vis.second;
+//    for (auto &vis : _visualObjects)
+//      delete vis.second;
+//
+//    for (auto &vis : _polyLines)
+//      delete vis.second;
+//
+//    for (auto &vis : _visualArticulatedSystem)
+//      delete vis.second;
   }
 
  private:
@@ -472,7 +476,11 @@ class RaisimServer final {
    * start spinning. */
   inline void launchServer(int port = 8080) {
     raisimPort_ = port;
-    serverThread_ = std::thread(&raisim::RaisimServer::loop, this);
+
+    threadResult_ = std::async(std::launch::async, [this] {
+      serverThread_ = std::thread(&raisim::RaisimServer::loop, this);
+      return true;
+    });
   }
 
   /**
@@ -502,8 +510,7 @@ class RaisimServer final {
    * stop spinning the server and disconnect the client */
   inline void killServer() {
     terminateRequested_ = true;
-    if (serverThread_.joinable())
-      serverThread_.join();
+    serverThread_.join();
     terminateRequested_ = false;
   }
 
@@ -525,11 +532,12 @@ class RaisimServer final {
    * @param[in] colorB the blue value of the color (max=1)
    * @param[in] colorA the alpha value of the color (max=1)
    * @return the articulated system visual pointer
-   * add a sphere without physics */
+   * add an articulated system without physics */
   inline ArticulatedSystemVisual *addVisualArticulatedSystem(const std::string &name,
                                                              const std::string &urdfFile,
                                                              double colorR = 0, double colorG = 0,
                                                              double colorB = 0, double colorA = 0) {
+    if (_visualArticulatedSystem.find(name) != _visualArticulatedSystem.end()) RSFATAL("Duplicated visual object name: " + name)
     _visualArticulatedSystem[name] = new ArticulatedSystemVisual(urdfFile);
     _visualArticulatedSystem[name]->color = raisim::Vec<4>{colorR, colorG, colorB, colorA};
     updateVisualConfig();
@@ -552,6 +560,8 @@ class RaisimServer final {
     // Erase the element pointed by iterator it
     if (it != _visualArticulatedSystem.end())
       _visualArticulatedSystem.erase(it);
+
+    delete as;
   }
 
   /**
@@ -562,8 +572,8 @@ class RaisimServer final {
    * @param[in] colorB the blue value of the color (max=1)
    * @param[in] colorA the alpha value of the color (max=1)
    * @param[in] material visualization material
-   * @param[in] glow to glow or not
-   * @param[in] shadow to cast shadow or not
+   * @param[in] glow to glow or not (not supported)
+   * @param[in] shadow to cast shadow or not (not supported)
    * @return the sphere pointer
    * add a sphere without physics */
   inline Visuals *addVisualSphere(const std::string &name, double radius,
@@ -593,8 +603,8 @@ class RaisimServer final {
    * @param[in] colorB the blue value of the color (max=1)
    * @param[in] colorA the alpha value of the color (max=1)
    * @param[in] material visualization material
-   * @param[in] glow to glow or not
-   * @param[in] shadow to cast shadow or not
+   * @param[in] glow to glow or not (not supported)
+   * @param[in] shadow to cast shadow or not (not supported)
    * @return the box pointer
    * add a box without physics */
   inline Visuals *addVisualBox(const std::string &name, double xLength,
@@ -626,8 +636,8 @@ class RaisimServer final {
    * @param[in] colorB the blue value of the color (max=1)
    * @param[in] colorA the alpha value of the color (max=1)
    * @param[in] material visualization material
-   * @param[in] glow to glow or not
-   * @param[in] shadow to cast shadow or not
+   * @param[in] glow to glow or not (not supported)
+   * @param[in] shadow to cast shadow or not (not supported)
    * @return the cylinder pointer
    * add a cylinder without physics */
   inline Visuals *addVisualCylinder(const std::string &name, double radius,
@@ -658,8 +668,8 @@ class RaisimServer final {
    * @param[in] colorB the blue value of the color (max=1)
    * @param[in] colorA the alpha value of the color (max=1)
    * @param[in] material visualization material
-   * @param[in] glow to glow or not
-   * @param[in] shadow to cast shadow or not
+   * @param[in] glow to glow or not (not supported)
+   * @param[in] shadow to cast shadow or not (not supported)
    * @return the capsule pointer
    * add a capsule without physics */
   inline Visuals *addVisualCapsule(const std::string &name, double radius,
@@ -680,6 +690,68 @@ class RaisimServer final {
     _visualObjects[name]->shadow = shadow;
     return _visualObjects[name];
   }
+
+  /**
+   * @param[in] name the name of the visual mesh object
+   * @param[in] file file name of the mesh
+   * @param[in] scale scale of the mesh
+   * @param[in] colorR the red value of the color   (max=1)
+   * @param[in] colorG the green value of the color (max=1)
+   * @param[in] colorB the blue value of the color  (max=1)
+   * @param[in] colorA the alpha value of the color (max=1). Ignore color when negative
+   * @param[in] glow to glow or not (not supported)
+   * @param[in] shadow to cast shadow or not (not supported)
+   * @return the mesh visual pointer
+   * add a mesh without physics */
+  inline Visuals *addVisualMesh(const std::string &name,
+                                const std::string &file,
+                                const Vec<3> &scale = {1, 1, 1},
+                                double colorR = 0, double colorG = 0,
+                                double colorB = 0, double colorA = -1,
+                                bool glow = false, bool shadow = false) {
+    if (_visualObjects.find(name) != _visualObjects.end()) RSFATAL("Duplicated visual object name: " + name)
+    updateVisualConfig();
+    _visualObjects[name] = new Visuals();
+    _visualObjects[name]->type = Visuals::VisualType::VisualMesh;
+    _visualObjects[name]->name = name;
+    _visualObjects[name]->meshFileName = file;
+    _visualObjects[name]->size = scale;
+    _visualObjects[name]->color = {colorR, colorG, colorB, colorA};
+    _visualObjects[name]->glow = glow;
+    _visualObjects[name]->shadow = shadow;
+    return _visualObjects[name];
+  }
+
+// will be added soon
+//  /**
+//   * @param[in] name the name of the visual mesh object
+//   * @param[in] radius radius of the arrow
+//   * @param[in] height height of the arrow
+//   * @param[in] colorR the red value of the color   (max=1)
+//   * @param[in] colorG the green value of the color (max=1)
+//   * @param[in] colorB the blue value of the color  (max=1)
+//   * @param[in] colorA the alpha value of the color (max=1)
+//   * @param[in] glow to glow or not (not supported)
+//   * @param[in] shadow to cast shadow or not (not supported)
+//   * @return the visual pointer
+//   * add an arrow without physics */
+//  inline Visuals *addVisualArrow(const std::string &name,
+//                                 double radius, double height,
+//                                 double colorR = 0, double colorG = 0,
+//                                 double colorB = 0, double colorA = -1,
+//                                 bool glow = false, bool shadow = false) {
+//    if (_visualObjects.find(name) != _visualObjects.end()) RSFATAL("Duplicated visual object name: " + name)
+//    updateVisualConfig();
+//    _visualObjects[name] = new Visuals();
+//    _visualObjects[name]->type = Visuals::VisualType::VisualArrow;
+//    _visualObjects[name]->name = name;
+//    _visualObjects[name]->size[0] = radius;
+//    _visualObjects[name]->size[1] = height;
+//    _visualObjects[name]->color = {colorR, colorG, colorB, colorA};
+//    _visualObjects[name]->glow = glow;
+//    _visualObjects[name]->shadow = shadow;
+//    return _visualObjects[name];
+//  }
 
   /**
    * @param[in] name the name of the polyline
@@ -789,7 +861,7 @@ class RaisimServer final {
    * @param[in] lookAt the forward direction of the camera (the up direction is always z-axis)
    * set the camera to a specified position */
   void setCameraPositionAndLookAt(const Eigen::Vector3d &pos, const Eigen::Vector3d &lookAt) {
-    serverRequest_.push_back(ServerRequestType::STOP_RECORD_VIDEO);
+    serverRequest_.push_back(ServerRequestType::SET_CAMERA_TO);
     position_ = pos;
     lookAt_ = lookAt;
   }
@@ -904,6 +976,9 @@ class RaisimServer final {
 
           case REQUEST_SERVER_STATUS:
             return false;
+
+          default:
+            break;
         }
       }
       unlockVisualizationServerMutex();
@@ -1033,7 +1108,7 @@ class RaisimServer final {
 
     // ArticulatedSystemVisuals
     for (auto &vis : _visualArticulatedSystem) {
-      auto *ob = vis.second->obj.get();
+      auto *ob = &vis.second->obj;
       data_ = setN(data_, vis.second->color.ptr(), 4);
       data_ = set(data_, (uint64_t) ob->getVisOb().size() + ob->getVisColOb().size());
 
@@ -1173,7 +1248,7 @@ class RaisimServer final {
         // COM position
         if(as->getJointType(0) == Joint::FLOATING) {
           data_ = set(data_, int32_t(0));
-          data_ = setN(data_, as->getCompositeCOM()[0].ptr(), 3);
+          data_ = setN(data_, as->getCOM().ptr(), 3);
         } else
           data_ = set(data_, int32_t(1));
 
@@ -1283,6 +1358,9 @@ class RaisimServer final {
               case SPHERE:
                 data_ = set(data_, vob.objectParam[0]);
                 break;
+
+              default:
+                break;
             }
           }
 
@@ -1314,6 +1392,7 @@ class RaisimServer final {
           break;
 
         case ARTICULATED_SYSTEM:
+        {
           std::string resDir =
               static_cast<ArticulatedSystem *>(ob)->getResourceDir();
           data_ = setString(data_, resDir);
@@ -1344,6 +1423,10 @@ class RaisimServer final {
               }
             }
           }
+        }
+          break;
+
+        case UNRECOGNIZED:
           break;
       }
     }
@@ -1381,11 +1464,11 @@ class RaisimServer final {
         data_ = set(data_, contactPos[2]);
 
         // contact forces
-        auto *impulseB = contact.getImpulse();
+        auto impulseB = contact.getImpulse();
         auto contactFrame = contact.getContactFrame();
 
         Vec<3> impulseW;
-        raisim::matTransposevecmul(contactFrame, *impulseB, impulseW);
+        raisim::matTransposevecmul(contactFrame, impulseB, impulseW);
         impulseW /= world_->getTimeStep();
         data_ = set(data_, impulseW[0]);
         data_ = set(data_, impulseW[1]);
@@ -1584,16 +1667,25 @@ class RaisimServer final {
           for (int i = 0; i < 3; i++) data_ = set(data_, (float) vo->size[i]);
           break;
 
+        case Visuals::VisualMesh:
+          for (int i = 0; i < 3; i++) data_ = set(data_, (float) vo->size[i]);
+          data_ = setString(data_, vo->meshFileName);
+          break;
+
         case Visuals::VisualCylinder:
         case Visuals::VisualCapsule:
+        case Visuals::VisualArrow:
           data_ = set(data_, (float) vo->size[0]);
           data_ = set(data_, (float) vo->size[1]);
+          break;
+
+        default:
           break;
       }
     }
 
     for (auto &vas : _visualArticulatedSystem) {
-      auto *ob = vas.second->obj.get();
+      auto *ob = &vas.second->obj;
       data_ = setString(data_, vas.first);
       std::string resDir = static_cast<ArticulatedSystem *>(ob)->getResourceDir();
       data_ = setString(data_, resDir);
@@ -1646,6 +1738,7 @@ class RaisimServer final {
   sockaddr_in address;
   int addrlen;
   std::thread serverThread_;
+  std::future<bool> threadResult_;
 
   std::mutex serverMutex_;
 

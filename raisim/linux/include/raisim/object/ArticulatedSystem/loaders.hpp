@@ -20,10 +20,10 @@ namespace urdf {
 
 struct UrdfMaterial {
   UrdfMaterial() {
-    color = {0.7, 0.7, 0.7};
+    color = {0.7, 0.7, 0.7, 1.};
   }
   std::string name;
-  Vec<3> color;
+  Vec<4> color;
 };
 
 inline Shape::Type charToGeom(const std::string &txt) {
@@ -46,6 +46,7 @@ struct UrdfBody {
     origin.setZero();
     rot.setIdentity();
     scale = {1., 1., 1.};
+    color = {0.7, 0.7, 0.7, -1.0};
   };
 
   Shape::Type shape;
@@ -54,6 +55,7 @@ struct UrdfBody {
   Mat<3, 3> rot;
   Vec<3> scale;
   std::vector<double> param;
+  raisim::Vec<4> color;
   std::string mat;
   std::string collision_mat;
   std::string name;
@@ -84,7 +86,7 @@ struct UrdfJoint {
     rot.setIdentity();
     springMountPos.setZero();
   }
-  std::string name = "", parent, child;
+  std::string name, parent, child;
   Joint::Type type;
   Vec<3> origin;
   Mat<3, 3> rot;
@@ -95,6 +97,7 @@ struct UrdfJoint {
   double stiffness = 0;
   double rotor_inertia = 0;
   double torque_limit = -1.;
+  double velocity_limit = 1e6;
   Vec<4> springMountPos;
 };
 
@@ -112,7 +115,7 @@ class LoadFromURDF2 {
 
  public:
   LoadFromURDF2(ArticulatedSystem &system,
-                std::string filePath,
+                const std::string& filePath,
                 std::vector<std::string> jointOrder,
                 bool isItAFilePath);
  private:
@@ -129,6 +132,7 @@ namespace mjcf {
 
 struct MjcfCompilerSetting {
   std::string angle;
+  std::string eulerseq;
 };
 
 class LoadFromMjcf {
@@ -165,7 +169,7 @@ class LoadFromMjcf {
                            const std::string &typeName,
                            const std::string &attName,
                            T &value) {
-    bool result;
+    bool result = false;
     std::string className;
     if (node.getAttributeIfExists("class", className)) {
       if (defaults.find(className) == defaults.end())
@@ -175,7 +179,7 @@ class LoadFromMjcf {
     } else {
       result = defaults.at(typeName).getAttributeIfExists(attName, value);
     }
-    return result || node.getAttributeIfExists(attName, value);
+    return node.getAttributeIfExists(attName, value) || result;
   }
 
   static void getPoseAndParam(const std::unordered_map<std::string, RaiSimTinyXmlWrapper> &defaults,
@@ -184,20 +188,21 @@ class LoadFromMjcf {
                               const std::string &typeName,
                               std::vector<double> &param,
                               Mat<3, 3> &rot,
-                              Vec<3> &pos);
+                              Vec<3> &pos,
+                              const MjcfCompilerSetting& setting);
 
   static void getMjcfSizeParam(const RaiSimTinyXmlWrapper &g, Shape::Type type, std::vector<double> &param);
   static void getMjcfPos(const RaiSimTinyXmlWrapper &g, Vec<3> &pos);
   static void posFromFromTo(const RaiSimTinyXmlWrapper &g, Vec<3> &pos);
-  static void getMjcfOrientation(const RaiSimTinyXmlWrapper &g, Mat<3, 3> &rot);
+  static void getMjcfOrientation(const RaiSimTinyXmlWrapper &g, Mat<3, 3> &rot, const std::string& eulerseq, const std::string& anglerep);
   static bool getColorFromMaterial(const std::unordered_map<std::string, RaiSimTinyXmlWrapper> &defaults,
                                    const std::string &c,
                                    std::string& color);
 
  private:
   static void processBody(Child &child,
-                          const Mat<3, 3> &parentBodyRot,
-                          const Vec<3> &parentBodyPos,
+                          Mat<3, 3> &parentBodyRot,
+                          Vec<3> &parentBodyPos,
                           const std::string &defaultName,
                           bool isRoot,
                           RaiSimTinyXmlWrapper &c,

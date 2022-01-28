@@ -33,9 +33,6 @@
 
 #include "converter.hpp"  // contains code that allows to convert between the Vec, Mat to numpy arrays.
 
-#include "ode/collision.h"
-#include "ode/ode.h"
-#include "ode/extras/collision_kernel.h"
 // Important note: for the above include ("ode/src/collision_kernel.h"), you have to add a `extras` folder in the
 // `$LOCAL_BUILD/include/ode/` which should contain the following header files:
 // array.h, collision_kernel.h, common.h, error.h, objects.h, odeou.h, odetls.h, threading_base.h, and typedefs.h.
@@ -70,26 +67,6 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
     /***********************/
     py::class_<raisim::CollisionDefinition>(m, "CollisionDefinition", "Raisim CollisionDefinition struct.")
 
-        .def(py::init([](py::array_t<double> rot_offset, py::array_t<double> pos_offset, size_t local_idx,
-                dGeomID collision_object, std::string name) {
-            // convert from np to Mat and Vec
-            raisim::Mat<3,3> rot = convert_np_to_mat<3,3>(rot_offset);
-            raisim::Vec<3> pos = convert_np_to_vec<3>(pos_offset);
-
-            // construct
-            return new raisim::CollisionDefinition(rot, pos, local_idx, collision_object, name);
-        }),  R"mydelimiter(
-        Instantiate the Collision Definition class.
-
-        Args:
-            rot_offset (np.array[float[3,3]]): rotation offset matrix.
-            pos_offset (np.array[float[3]]): position offset.
-            local_idx (int): local index.
-            collision_object (dGeomID): collision object.
-            name (str): name of the collision definition.
-        )mydelimiter",
-        py::arg("rot_offset"), py::arg("pos_offset"), py::arg("local_idx"), py::arg("collision_object"), py::arg("name"))
-
         .def_property("rotOffset",
             [](raisim::CollisionDefinition &self) {  // getter
                 return convert_mat_to_np(self.rotOffset);
@@ -105,7 +82,12 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
                 self.posOffset = pos;
             })
         .def_readwrite("localIdx", &raisim::CollisionDefinition::localIdx)
-        .def_readwrite("name", &raisim::CollisionDefinition::name);
+        .def_property("name",
+                      [](raisim::CollisionDefinition &self) {  // getter
+                        return self.colObj->name;
+                      }, [](raisim::CollisionDefinition &self, py::str name) {  // setter
+              self.colObj->name = name;
+            });
 
 
     /*********/
@@ -118,6 +100,14 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
         .value("Mesh", raisim::Shape::Type::Mesh)
         .value("Capsule", raisim::Shape::Type::Capsule)
         .value("Cone", raisim::Shape::Type::Cone);
+
+    /*******************/
+    /* Spring          */
+    /*******************/
+    py::class_<raisim::ArticulatedSystem::SpringElement>(m, "SpringElement", "Spring element in an articulated system")
+        .def_property("q_ref", &raisim::ArticulatedSystem::SpringElement::getSpringMount, &raisim::ArticulatedSystem::SpringElement::setSpringMount)
+        .def_readwrite("childBodyId", &raisim::ArticulatedSystem::SpringElement::childBodyId)
+        .def_readwrite("stiffness", &raisim::ArticulatedSystem::SpringElement::stiffness);
 
     /*******************/
     /* CoordinateFrame */
@@ -358,9 +348,10 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
         )mydelimiter")
 
 
-        .def("getNonlinearities", [](raisim::ArticulatedSystem &self) {
-            VecDyn vec = self.getNonlinearities();
-            return convert_vecdyn_to_np(vec);
+        .def("getNonlinearities", [](raisim::ArticulatedSystem &self, py::array_t<double> gravity) {
+          Vec<3> g = convert_np_to_vec<3>(gravity);
+          VecDyn vec = self.getNonlinearities(g);
+          return convert_vecdyn_to_np(vec);
         }, R"mydelimiter(
         Get the non linearity terms that are present in the dynamic equation of motion:
 
@@ -506,7 +497,7 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
          you have to use this with "void getPosition_W(size_t bodyIdx, const Vec<3> &point_B, Vec<3> &point_W)".
          If you want the orientation expressed in the world frame,
          you have to get the parent body orientation and pre-multiply it by the relative orientation*/
-        .def("getFrameByName", py::overload_cast<const std::string &>(&raisim::ArticulatedSystem::getFrameByName), R"mydelimiter(
+        .def("getFrameByName", py::overload_cast<const std::string &>(&raisim::ArticulatedSystem::getFrameByName), py::return_value_policy::reference, R"mydelimiter(
         Get the coordinate frame from its name.
 
         Args:
@@ -518,7 +509,7 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
         py::arg("name"))
 
 
-        .def("getFrameByIdx", py::overload_cast<size_t>(&raisim::ArticulatedSystem::getFrameByIdx), R"mydelimiter(
+        .def("getFrameByIdx", py::overload_cast<size_t>(&raisim::ArticulatedSystem::getFrameByIdx), py::return_value_policy::reference, R"mydelimiter(
         Get the coordinate frame from its index.
 
         Args:
@@ -529,7 +520,14 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
         )mydelimiter",
         py::arg("idx"))
 
-        .def("getFrameIdxByName", &raisim::ArticulatedSystem::getFrameIdxByName, R"mydelimiter(
+        .def("getSprings", py::overload_cast<>(&raisim::ArticulatedSystem::getSprings), py::return_value_policy::reference, R"mydelimiter(
+        Get the spring elements.
+
+        Returns:
+            springs: list of spring elements.
+        )mydelimiter")
+
+        .def("getFrameIdxByName", &raisim::ArticulatedSystem::getFrameIdxByName, py::return_value_policy::reference, R"mydelimiter(
         Get the coordinate frame index from its name.
 
         Args:
@@ -540,7 +538,7 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
         )mydelimiter",
         py::arg("name"))
 
-        .def("getFrames", py::overload_cast<>(&raisim::ArticulatedSystem::getFrames), R"mydelimiter(
+        .def("getFrames", py::overload_cast<>(&raisim::ArticulatedSystem::getFrames), py::return_value_policy::reference, R"mydelimiter(
         Get all the coordinate frames.
 
         Returns:
@@ -942,7 +940,7 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
 
 
 
-        .def("getMass", py::overload_cast<>(&raisim::ArticulatedSystem::getMass), R"mydelimiter(
+        .def("getMass", py::overload_cast<>(&raisim::ArticulatedSystem::getMass), py::return_value_policy::reference, R"mydelimiter(
         Return the body/link masses.
 
         Returns:
@@ -1439,7 +1437,7 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
 	    )mydelimiter")
 
 
-	    .def("getVisualObjectPose", [](raisim::ArticulatedSystem &self, size_t body_idx) {
+	    .def("getVisualObjectPosition", [](raisim::ArticulatedSystem &self, size_t body_idx) {
 	        Vec<3> pos;
             Mat<3,3> rot;
             self.getVisObPose(body_idx, rot, pos);
@@ -1448,39 +1446,38 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
             rotMatToQuat(rot, quat);
 
             auto position = convert_vec_to_np(pos);
-            auto orientation = convert_vec_to_np(quat);
-            return position, orientation;
+            return position;
 	    }, R"mydelimiter(
-	    Get the visual object pose (where the orientation is expressed as a quaternion).
+	    Get the visual object position.
 
 	    Args:
 	        body_idx (int): body index.
 
 	    Returns:
 	        np.array[float[3]]: visual object position.
+	    )mydelimiter")
+
+	    .def("getVisualObjectOrientation", [](raisim::ArticulatedSystem &self, size_t body_idx) {
+	      Vec<3> pos;
+	      Mat<3,3> rot;
+	      self.getVisObPose(body_idx, rot, pos);
+	      Vec<4> quat;
+	      rotMatToQuat(rot, quat);
+
+	      auto orientation = convert_vec_to_np(quat);
+	      return orientation;
+	      }, R"mydelimiter(
+	    Get the visual object orientation in quaternion.
+
+	    Args:
+	        body_idx (int): body index.
+
+	    Returns:
 	        np.array[float[4]]: visual object orientation (expressed as a quaternion [w,x,y,z]).
-	    )mydelimiter")
-
-	    .def("getVisualObjectPose1", [](raisim::ArticulatedSystem &self, size_t body_idx) {
-	        Vec<3> pos;
-            Mat<3,3> rot;
-            self.getVisObPose(body_idx, rot, pos);
-            auto position = convert_vec_to_np(pos);
-            auto orientation = convert_mat_to_np(rot);
-            return position, orientation;
-	    }, R"mydelimiter(
-	    Get the visual object pose (where the orientation is expressed as a rotation matrix).
-
-	    Args:
-	        body_idx (int): body index.
-
-	    Returns:
-	        np.array[float[3]]: visual object position.
-	        np.array[float[3,3]]: visual object orientation (expressed as a rotation matrix).
-	    )mydelimiter")
+	      )mydelimiter")
 
 
-	    .def("getVisColObPose", [](raisim::ArticulatedSystem &self, size_t body_idx) {
+	    .def("getVisColObPosition", [](raisim::ArticulatedSystem &self, size_t body_idx) {
 	        Vec<3> pos;
             Mat<3,3> rot;
             self.getVisColObPose(body_idx, rot, pos);
@@ -1489,36 +1486,36 @@ void init_articulated_system(py::module &m) { // py::module &main_module) {
             rotMatToQuat(rot, quat);
 
             auto position = convert_vec_to_np(pos);
-            auto orientation = convert_vec_to_np(quat);
-            return position, orientation;
+            return position;
 	    }, R"mydelimiter(
-	    Get the visual collision object pose (where the orientation is expressed as a quaternion).
+	    Get the visual collision object position.
 
 	    Args:
 	        body_idx (int): body index.
 
 	    Returns:
 	        np.array[float[3]]: visual object position.
+	    )mydelimiter")
+
+	    .def("getVisColObOrientation", [](raisim::ArticulatedSystem &self, size_t body_idx) {
+	      Vec<3> pos;
+	      Mat<3,3> rot;
+	      self.getVisColObPose(body_idx, rot, pos);
+
+	      Vec<4> quat;
+	      rotMatToQuat(rot, quat);
+
+	      auto orientation = convert_vec_to_np(quat);
+	      return orientation;
+	      }, R"mydelimiter(
+	    Get the visual collision object orientation in a quaternion.
+
+	    Args:
+	        body_idx (int): body index.
+
+	    Returns:
 	        np.array[float[4]]: visual object orientation (expressed as a quaternion [w,x,y,z]).
-	    )mydelimiter")
-
-	    .def("getVisColObPose1", [](raisim::ArticulatedSystem &self, size_t body_idx) {
-	        Vec<3> pos;
-            Mat<3,3> rot;
-            self.getVisColObPose(body_idx, rot, pos);
-            auto position = convert_vec_to_np(pos);
-            auto orientation = convert_mat_to_np(rot);
-            return position, orientation;
-	    }, R"mydelimiter(
-	    Get the visual collision object pose (where the orientation is expressed as a rotation matrix).
-
-	    Args:
-	        body_idx (int): body index.
-
-	    Returns:
-	        np.array[float[3]]: visual object position.
-	        np.array[float[3,3]]: visual object orientation (expressed as a rotation matrix).
-	    )mydelimiter")
+	      )mydelimiter")
 
 
         .def("getResourceDir", &raisim::ArticulatedSystem::getResourceDir, R"mydelimiter(

@@ -118,8 +118,8 @@ for update in range(1000000):
         action = ppo.observe(obs)
         reward, dones = env.step(action)
         ppo.step(value_obs=obs, rews=reward, dones=dones)
-        done_sum = done_sum + sum(dones)
-        reward_ll_sum = reward_ll_sum + sum(reward)
+        done_sum = done_sum + np.sum(dones)
+        reward_ll_sum = reward_ll_sum + np.sum(reward)
 
     # take st step to get value obs
     obs = env.observe()
@@ -129,6 +129,9 @@ for update in range(1000000):
     avg_rewards.append(average_ll_performance)
 
     actor.distribution.enforce_minimum_std((torch.ones(12)*0.2).to(device))
+
+    # curriculum update. Implement it in Environment.hpp
+    env.curriculum_callback()
 
     end = time.time()
 

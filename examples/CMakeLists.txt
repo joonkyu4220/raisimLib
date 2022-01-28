@@ -32,11 +32,23 @@ function(create_executable app_name file_name)
     else()
         target_link_libraries(${app_name} PUBLIC raisim::raisim pthread)
     endif()
+
+    if(APPLE)
+        execute_process(COMMAND sysctl -q hw.optional.arm64
+                OUTPUT_VARIABLE _sysctl_stdout
+                ERROR_VARIABLE _sysctl_stderr
+                RESULT_VARIABLE _sysctl_result
+                )
+        if(_sysctl_result EQUAL 0 AND _sysctl_stdout MATCHES "hw.optional.arm64: 1")
+            target_compile_options(${app_name} PRIVATE -mcpu=apple-m1)
+        endif()
+    endif()
+
     target_include_directories(${app_name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 endfunction()
 
 # benchmark examples
-create_executable(anymal_speed_test src/benchmark/anymal.cpp)
+create_executable(speed_test src/benchmark/speed_test.cpp)
 
 # server examples
 create_executable(primitives src/server/primitives.cpp)
@@ -45,8 +57,9 @@ create_executable(laikago src/server/laikago.cpp)
 create_executable(balls src/server/balls.cpp)
 create_executable(atlas src/server/atlas.cpp)
 create_executable(heightmap src/server/heightmap.cpp)
-create_executable(robots src/server/robots.cpp)
+create_executable(robots src/server/aliengo.cpp)
 create_executable(materials src/server/material.cpp)
+create_executable(materialStaticFriction src/server/materialStaticFriction.cpp)
 create_executable(heightMapUsingPng src/server/heightMapUsingPng.cpp)
 create_executable(wheeledRobot src/server/wheeledRobot.cpp)
 create_executable(newtonsCradle src/server/newtonsCradle.cpp)
@@ -67,3 +80,4 @@ create_executable(xmlRader src/xml/xmlReader.cpp)
 # mjcf files
 create_executable(mjcf_humanoid src/mjcf/humanoid.cpp)
 create_executable(mjcf_ant src/mjcf/ant.cpp)
+create_executable(mjcf_cassie src/mjcf/cassie.cpp)

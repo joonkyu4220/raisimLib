@@ -6,6 +6,7 @@ import raisimpy as raisim
 import time
 from scipy.spatial.transform import Rotation as R
 
+
 raisim.World.setLicenseFile(os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/activation.raisim")
 anymal_urdf_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/anymal/urdf/anymal.urdf"
 laikago_urdf_file = os.path.dirname(os.path.abspath(__file__)) + "/../../rsc/laikago/laikago.urdf"
@@ -117,7 +118,7 @@ world.integrate1()
 # mass matrix
 # mass_matrix = anymal.getMassMatrix()
 # non-linear term (gravity+coriolis)
-# non_linearities = anymal.getNonlinearities()
+non_linearities = anymal.getNonlinearities([0,0,-9.81])
 # Jacobians
 # jaco_foot_lh_linear = anymal.getDenseFrameJacobian("LF_ADAPTER_TO_FOOT")
 # jaco_foot_lh_angular = anymal.getDenseFrameRotationalJacobian("LF_ADAPTER_TO_FOOT")
@@ -212,5 +213,8 @@ while True:
 	#print(record_data)
 	np.savetxt('data.txt', record_data, fmt='%f')
 
+for i in range(500000):
+    time.sleep(0.001)
+    world.integrate()
 
 server.killServer()

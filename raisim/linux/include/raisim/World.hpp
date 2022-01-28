@@ -76,9 +76,6 @@ class World {
 
  public:
 
-  typedef std::vector<contact::Single3DContactProblem, AlignedAllocator<contact::Single3DContactProblem, 32>>
-      ContactProblems;
-
   /**
    * export the world to an xml config file, which can be loaded using a constructor
    * @param activationKey path to the license file */
@@ -494,7 +491,7 @@ class World {
    *    1) calls "preContactSolverUpdate2()" of each body
    *    2) run collision solver
    *    3) calls "integrate" method of each object */
-  const ContactProblems *getContactProblem() const { return &contactProblems_; }
+  const contact::ContactProblems *getContactProblem() const { return &contactProblems_; }
 
   void setGravity(const Vec<3> &gravity);
 
@@ -517,6 +514,23 @@ class World {
                            double resThreshold);
 
   /**
+   * Add a new material pair property. In RaiSim, material property is defined by the pair.
+   * @param mat1 name of the first material (the order of mat1 and mat2 is not important)
+   * @param mat2 name of the first material
+   * @param friction the dynamic coefficient of friction
+   * @param restitution the coefficient of restitution
+   * @param resThreshold the minimum impact velocity to make the object bounce
+   * @param staticFriction the static coefficient of friction
+   * @param staticFrictionThresholdVelocity if the relative velocity of two points is bigger than this value, then the dynamic coefficient of friction is applied. Otherwise, the coefficient of friction is interpolated between the static and dynamic one proportional to the relative velocity.*/
+  void setMaterialPairProp(const std::string &mat1,
+                           const std::string &mat2,
+                           double friction,
+                           double restitution,
+                           double resThreshold,
+                           double staticFriction,
+                           double staticFrictionThresholdVelocity);
+
+  /**
    * this default material property is used if a material pair property is not defined for the specific collision
    * @param friction the coefficient of friction
    * @param restitution the coefficient of restitution
@@ -524,6 +538,19 @@ class World {
   void setDefaultMaterial(double friction,
                           double restitution,
                           double resThreshold);
+
+  /**
+   * this default material property is used if a material pair property is not defined for the specific collision
+   * @param friction the coefficient of friction
+   * @param restitution the coefficient of restitution
+   * @param resThreshold the minimum impact velocity to make the object bounce
+   * @param staticFriction the static coefficient of friction
+   * @param staticFrictionThresholdVelocity if the relative velocity of two points is bigger than this value, then the dynamic coefficient of friction is applied. Otherwise, the coefficient of friction is interpolated between the static and dynamic one proportional to the relative velocity.*/
+  void setDefaultMaterial(double friction,
+                          double restitution,
+                          double resThreshold,
+                          double staticFriction,
+                          double staticFrictionThresholdVelocity);
 
   /**
    * @return gravitational acceleration of the world */
@@ -573,6 +600,15 @@ class World {
    */
   std::vector<std::unique_ptr<LengthConstraint>>& getWires () { return wire_; }
 
+  /**
+   * get the material pair properties. The order of materials does not matter.
+   * @param[in] mat1 material name
+   * @param[in] mat2 material name
+   * @return material pair properties
+   */
+  const MaterialPairProperties& getMaterialPairProperties (const std::string& mat1, const std::string& mat2) const {
+    return mat_.getMaterialPairProp(mat1, mat2); }
+
 protected:
   void init();
   void contactProblemUpdate(Object *objectA);
@@ -585,7 +621,7 @@ protected:
   raisim::SingleBodyObject* addMjcfGeom(const RaiSimTinyXmlWrapper& geom,
                                         const std::unordered_map<std::string, RaiSimTinyXmlWrapper>& defaults,
                                         const std::unordered_map<std::string, std::pair<std::string, Vec<3>>>& mesh,
-                                        const std::string& name);
+                                        const mjcf::MjcfCompilerSetting& setting);
   void loadMjcf(const std::string& configFile);
   ArticulatedSystem* addArticulatedSystem(const RaiSimTinyXmlWrapper& node,
                                           const std::string &resPath,
@@ -606,9 +642,7 @@ protected:
 
   // list
   std::vector<Object *> objectList_;
-  ContactProblems contactProblems_;
-  std::vector<size_t> colIdxToObjIdx_;
-  std::vector<size_t> colIdxToLocalObjIdx_;
+  contact::ContactProblems contactProblems_;
 
   // constraints
   std::vector<std::unique_ptr<LengthConstraint>> wire_;
