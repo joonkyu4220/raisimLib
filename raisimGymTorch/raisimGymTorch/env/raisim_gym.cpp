@@ -42,6 +42,7 @@ PYBIND11_MODULE(RAISIMGYM_TORCH_ENV_NAME, m) {
     .def("timeLimitReset", &VectorizedEnvironment<ENVIRONMENT>::timeLimitReset)
     .def("getTotalRewards", &VectorizedEnvironment<ENVIRONMENT>::getTotalRewards)
     .def("setEnvironmentTask", &VectorizedEnvironment<ENVIRONMENT>::setEnvironmentTask)
+    .def("setReference", &VectorizedEnvironment<ENVIRONMENT>::setReference)
     .def(py::pickle(
         [](const VectorizedEnvironment<ENVIRONMENT> &p) { // __getstate__ --> Pickling to Python
             /* Return a tuple that fully encodes the state of the object */

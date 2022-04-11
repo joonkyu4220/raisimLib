@@ -43,6 +43,7 @@ class RaisimGymEnv {
   virtual void close() { if(server_) server_->killServer(); };
   virtual void setSeed(int seed) {};
   virtual void getState(Eigen::Ref<EigenVec> ob) {};
+  virtual void setReference(const Eigen::Ref<EigenVec>& ref) {};
   ////////////////////////////////
 
   void setSimulationTimeStep(double dt) { simulation_dt_ = dt; world_->setTimeStep(dt); }

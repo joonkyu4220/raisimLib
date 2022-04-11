@@ -187,6 +187,9 @@ class RaisimGymVecTorchEnv:
         self.get_total_reward()
         return self.observe(), self._reward_torch[:], self._done_torch[:], {}
 
+    def set_reference(self, reference):
+        self.wrapper.setReference(reference)
+
     def load_scaling(self, dir_name, iteration, count=1e5):
         mean_file_name = dir_name + "/mean" + str(iteration) + ".csv"
         var_file_name = dir_name + "/var" + str(iteration) + ".csv"
