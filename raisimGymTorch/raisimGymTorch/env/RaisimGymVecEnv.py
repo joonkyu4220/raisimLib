@@ -147,6 +147,7 @@ class RaisimGymVecTorchEnv:
         self.obs_rms = RunningMeanStd(shape=[self.num_envs, self.num_obs])
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
         self._done = np.zeros(self.num_envs, dtype=np.bool)
+        self._time_limit_done = np.zeros(self.num_envs, dtype=np.bool)
         self.rewards = [[] for _ in range(self.num_envs)]
         self.observation_space = np.zeros(self.num_obs)
         self.action_space = np.zeros(self.num_acts)
@@ -213,6 +214,9 @@ class RaisimGymVecTorchEnv:
         self._reward[:] = np.zeros(self.num_envs, dtype=np.float32)
         self.wrapper.reset()
 
+    def done_reset(self, done):
+        self.wrapper.done_reset(done)
+
     def _normalize_observation(self, obs):
         if self.normalize_ob:
 
@@ -222,7 +226,8 @@ class RaisimGymVecTorchEnv:
             return obs
 
     def reset_time_limit(self):
-        self.wrapper.timeLimitReset()
+        self.wrapper.timeLimitReset(self._time_limit_done)
+        return self._time_limit_done.copy()
 
     def get_total_reward(self):
         total_rewards = self.wrapper.getTotalRewards();
