@@ -125,7 +125,7 @@ class VectorizedEnvironment {
 
   void timeLimitReset(Eigen::Ref<EigenBoolVec> &done) {
     for (int i = 0; i < num_envs_; i++) {
-      done[i] == environments_[i]->time_limit_reached();
+      done[i] = environments_[i]->time_limit_reached();
       if (environments_[i]->time_limit_reached())
         environments_[i]->reset();
     }

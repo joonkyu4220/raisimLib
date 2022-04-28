@@ -158,8 +158,8 @@ class RaisimGymVecTorchEnv:
 
         self.total_rewards = torch.zeros(self.num_envs, dtype=torch.float32, device=device)
         self.num_states = self.wrapper.getStateDim()
-        self._state = np.zeros([self.num_envs, 2 * self.num_states], dtype=np.float32)
-        self._state_torch = torch.zeros(self.num_envs, 2 * self.num_states, dtype=torch.float32, device=device)
+        self._state = np.zeros([self.num_envs, self.num_states], dtype=np.float32)
+        self._state_torch = torch.zeros(self.num_envs, self.num_states, dtype=torch.float32, device=device)
 
         # time limit
         self.t = torch.zeros(self.num_envs, dtype=torch.int32)
