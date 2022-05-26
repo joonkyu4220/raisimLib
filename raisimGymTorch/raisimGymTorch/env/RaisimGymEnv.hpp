@@ -44,6 +44,7 @@ class RaisimGymEnv {
   virtual void setSeed(int seed) {};
   virtual void getState(Eigen::Ref<EigenVec> ob) {};
   virtual void setReference(const Eigen::Ref<EigenVec>& ref) {};
+  virtual void getReference(Eigen::Ref<EigenVec> ref) {};
   ////////////////////////////////
 
   void setSimulationTimeStep(double dt) { simulation_dt_ = dt; world_->setTimeStep(dt); }

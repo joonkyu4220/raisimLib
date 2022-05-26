@@ -68,6 +68,7 @@ class VectorizedEnvironment {
   }
 
   void done_reset(Eigen::Ref<EigenBoolVec> &done){
+#pragma omp parallel for schedule(guided, 33)
     for (int i = 0; i < num_envs_; i++) {
       if (done[i])
         environments_[i]->reset();
@@ -75,13 +76,13 @@ class VectorizedEnvironment {
   }
 
   void observe(Eigen::Ref<EigenRowMajorMat> &ob) {
-#pragma omp parallel for
+#pragma omp parallel for schedule(guided, 33)
     for (int i = 0; i < num_envs_; i++)
       environments_[i]->observe(ob.row(i));
   }
 
   void getState(Eigen::Ref<EigenRowMajorMat> &ob) {
-#pragma omp parallel for
+#pragma omp parallel for schedule(guided, 33)
     for (int i = 0; i < num_envs_; i++)
       environments_[i]->getState(ob.row(i));
   }
@@ -89,15 +90,21 @@ class VectorizedEnvironment {
   void step(Eigen::Ref<EigenRowMajorMat> &action,
             Eigen::Ref<EigenVec> &reward,
             Eigen::Ref<EigenBoolVec> &done) {
-#pragma omp parallel for
+#pragma omp parallel for schedule(guided, 33)
     for (int i = 0; i < num_envs_; i++)
       perAgentStep(i, action, reward, done);
   }
 
   void setReference(Eigen::Ref<EigenRowMajorMat> &reference) {
-#pragma omp parallel for
+#pragma omp parallel for schedule(guided, 33)
     for (int i = 0; i < num_envs_; i++)
       environments_[i]->setReference(reference.row(i));
+  }
+
+  void getReference(Eigen::Ref<EigenRowMajorMat> &reference) {
+#pragma omp parallel for schedule(guided, 33)
+    for (int i = 0; i < num_envs_; i++)
+      environments_[i]->getReference(reference.row(i));
   }
 
   void turnOnVisualization() { if(render_) environments_[0]->turnOnVisualization(); }
