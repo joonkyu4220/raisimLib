@@ -144,7 +144,7 @@ class RaisimGymVecTorchEnv:
         self.num_obs = self.wrapper.getObDim()
         self.num_acts = self.wrapper.getActionDim()
         self._observation = np.zeros([self.num_envs, self.num_obs], dtype=np.float32)
-        self._kinematic_observation = np.zeros([self.num_envs, 82], dtype=np.float32)
+        self._kinematic_observation = np.zeros([self.num_envs, 84], dtype=np.float32)
         self.obs_rms = RunningMeanStd(shape=[self.num_envs, self.num_obs])
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
         self._done = np.zeros(self.num_envs, dtype=np.bool)
@@ -154,7 +154,7 @@ class RaisimGymVecTorchEnv:
         self.action_space = np.zeros(self.num_acts)
 
         self._observation_torch = torch.zeros(self.num_envs, self.num_obs, dtype=torch.float32, device=device)
-        self._kinematic_observation_torch = torch.zeros(self.num_envs, 82, dtype=torch.float32, device=device)
+        self._kinematic_observation_torch = torch.zeros(self.num_envs, 84, dtype=torch.float32, device=device)
         self._reward_torch = torch.zeros(self.num_envs, dtype=torch.float32, device=device)
         self._done_torch = torch.zeros(self.num_envs, dtype=torch.int32, device=device)
 
@@ -166,6 +166,8 @@ class RaisimGymVecTorchEnv:
         # time limit
         self.t = torch.zeros(self.num_envs, dtype=torch.int32)
         self.time_limit = 150
+
+        self.num_steps = np.zeros(self.num_envs, dtype=np.int32)
 
     def seed(self, seed=None):
         self.wrapper.setSeed(seed)
@@ -188,6 +190,7 @@ class RaisimGymVecTorchEnv:
         self._reward_torch[:] = torch.from_numpy(self._reward[:]).to(device)
         self._done_torch[:] = torch.from_numpy(self._done[:]).to(device)
         self.get_total_reward()
+        self.num_steps += 1
         return self.observe(), self._reward_torch[:], self._done_torch[:], {}
 
     def set_reference(self, reference):
