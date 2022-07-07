@@ -101,6 +101,12 @@ class VectorizedEnvironment {
       environments_[i]->setReference(reference.row(i));
   }
 
+  void setReferenceVelocity(Eigen::Ref<EigenRowMajorMat> &reference_velocity) {
+#pragma omp parallel for schedule(guided, 33)
+    for (int i = 0; i < num_envs_; i++)
+      environments_[i]->setReferenceVelocity(reference_velocity.row(i));
+  }
+
   void getReference(Eigen::Ref<EigenRowMajorMat> &reference) {
 #pragma omp parallel for schedule(auto)
     for (int i = 0; i < num_envs_; i++)

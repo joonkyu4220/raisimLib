@@ -196,6 +196,9 @@ class RaisimGymVecTorchEnv:
     def set_reference(self, reference):
         self.wrapper.setReference(reference)
 
+    def set_reference_velocity(self, reference_velocity):
+        self.wrapper.setReferenceVelocity(reference_velocity)
+
     def get_reference(self):
         self.wrapper.getReference(self._kinematic_observation)
         self._kinematic_observation_torch[:, :] = torch.from_numpy(self._kinematic_observation[:, :]).to(device)

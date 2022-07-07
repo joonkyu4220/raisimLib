@@ -43,6 +43,7 @@ PYBIND11_MODULE(RAISIMGYM_TORCH_ENV_NAME, m) {
     .def("getTotalRewards", &VectorizedEnvironment<ENVIRONMENT>::getTotalRewards)
     .def("setEnvironmentTask", &VectorizedEnvironment<ENVIRONMENT>::setEnvironmentTask)
     .def("setReference", &VectorizedEnvironment<ENVIRONMENT>::setReference)
+    .def("setReferenceVelocity", &VectorizedEnvironment<ENVIRONMENT>::setReferenceVelocity)
     .def("getReference", &VectorizedEnvironment<ENVIRONMENT>::getReference)
     .def("done_reset", &VectorizedEnvironment<ENVIRONMENT>::done_reset)
     .def(py::pickle(
