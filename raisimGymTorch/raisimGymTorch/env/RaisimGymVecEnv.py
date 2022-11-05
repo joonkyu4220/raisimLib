@@ -25,7 +25,7 @@ class RaisimGymVecEnv:
         self._observation = np.zeros([self.num_envs, self.num_obs], dtype=np.float32)
         self.obs_rms = RunningMeanStd(shape=[self.num_envs, self.num_obs])
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
-        self._done = np.zeros(self.num_envs, dtype=np.bool)
+        self._done = np.zeros(self.num_envs, dtype=np.float32)
         self.rewards = [[] for _ in range(self.num_envs)]
         self.observation_space = np.zeros(self.num_obs)
         self.action_space = np.zeros(self.num_acts)
@@ -64,7 +64,6 @@ class RaisimGymVecEnv:
 
     def observe(self, update_mean=True):
         self.wrapper.observe(self._observation)
-
         if self.normalize_ob:
             if update_mean:
                 self.obs_rms.update(self._observation)
@@ -133,7 +132,6 @@ class RunningMeanStd(object):
 
 
 class RaisimGymVecTorchEnv:
-
     def __init__(self, impl, cfg, normalize_ob=False, seed=0, normalize_rew=False, clip_obs=10.):
         if platform.system() == "Darwin":
             os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -147,7 +145,7 @@ class RaisimGymVecTorchEnv:
         self._kinematic_observation = np.zeros([self.num_envs, 84], dtype=np.float32)
         self.obs_rms = RunningMeanStd(shape=[self.num_envs, self.num_obs])
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
-        self._done = np.zeros(self.num_envs, dtype=np.bool)
+        self._done = np.zeros(self.num_envs, dtype=np.float32)
         self._time_limit_done = np.zeros(self.num_envs, dtype=np.bool)
         self.rewards = [[] for _ in range(self.num_envs)]
         self.observation_space = np.zeros(self.num_obs)
@@ -159,6 +157,7 @@ class RaisimGymVecTorchEnv:
         self._done_torch = torch.zeros(self.num_envs, dtype=torch.int32, device=device)
 
         self.total_rewards = torch.zeros(self.num_envs, dtype=torch.float32, device=device)
+
         self.num_states = self.wrapper.getStateDim()
         self._state = np.zeros([self.num_envs, self.num_states], dtype=np.float32)
         self._state_torch = torch.zeros(self.num_envs, self.num_states, dtype=torch.float32, device=device)
@@ -189,6 +188,12 @@ class RaisimGymVecTorchEnv:
         self.wrapper.observe(self._observation)
         self._reward_torch[:] = torch.from_numpy(self._reward[:]).to(device)
         self._done_torch[:] = torch.from_numpy(self._done[:]).to(device)
+
+        count = torch.bincount(self._done_torch)
+
+        for termination_condition_idx in range(1, count.shape[0]):
+            self._done_count[termination_condition_idx - 1] += count[termination_condition_idx]
+
         self.get_total_reward()
         self.num_steps += 1
         return self.observe(), self._reward_torch[:], self._done_torch[:], {}
@@ -219,12 +224,12 @@ class RaisimGymVecTorchEnv:
 
     def observe(self):
         self.wrapper.observe(self._observation)
-
         self._observation_torch[:, :] = torch.from_numpy(self._observation[: ,:]).to(device)
         return self._observation_torch
 
     def reset(self):
         self._reward[:] = np.zeros(self.num_envs, dtype=np.float32)
+        self._done_count = np.zeros(4)
         self.wrapper.reset()
 
     def done_reset(self, done):
@@ -245,6 +250,8 @@ class RaisimGymVecTorchEnv:
     def get_total_reward(self):
         total_rewards = self.wrapper.getTotalRewards();
         self.total_rewards[:] = torch.from_numpy(total_rewards).to(device)
+        # reward logging
+        self.reward_info = self.wrapper.rewardInfo()
 
     def close(self):
         self.wrapper.close()
