@@ -34,7 +34,7 @@ class RaisimGymEnv {
   virtual void reset() = 0;
   virtual void observe(Eigen::Ref<EigenVec> ob) = 0;
   virtual float step(const Eigen::Ref<EigenVec>& action) = 0;
-  virtual int isTerminalState(float& terminalReward) = 0;
+  virtual bool isTerminalState(float& terminalReward) = 0;
   ////////////////////////////////////////
 
   /////// optional methods ///////
@@ -66,8 +66,8 @@ class RaisimGymEnv {
 
  protected:
   std::unique_ptr<raisim::World> world_;
-  double simulation_dt_ = 0.001; // 0.001
-  double control_dt_ = 0.01; // 0.01
+  double simulation_dt_ = 0.002;
+  double control_dt_ = 0.033333;
   std::string resourceDir_;
   Yaml::Node cfg_;
   int obDim_=0, actionDim_=0, stateDim_=0;

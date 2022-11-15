@@ -37,6 +37,7 @@ class VectorizedEnvironment {
   void init() {
     omp_set_num_threads(cfg_["num_threads"].template As<int>());
     num_envs_ = cfg_["num_envs"].template As<int>();
+
     environments_.reserve(num_envs_);
     rewardInformation_.reserve(num_envs_);
     for (int i = 0; i < num_envs_; i++) {
@@ -88,7 +89,7 @@ class VectorizedEnvironment {
 
   void step(Eigen::Ref<EigenRowMajorMat> &action,
             Eigen::Ref<EigenVec> &reward,
-            Eigen::Ref<EigenVec> &done) {
+            Eigen::Ref<EigenBoolVec> &done) {
 #pragma omp parallel for schedule(auto)
     for (int i = 0; i < num_envs_; i++)
       perAgentStep(i, action, reward, done);
@@ -128,7 +129,7 @@ class VectorizedEnvironment {
       env->close();
   }
 
-  void isTerminalState(Eigen::Ref<EigenVec>& terminalState) {
+  void isTerminalState(Eigen::Ref<EigenBoolVec>& terminalState) {
     for (int i = 0; i < num_envs_; i++) {
       float terminalReward;
       terminalState[i] = environments_[i]->isTerminalState(terminalReward);
@@ -185,7 +186,7 @@ class VectorizedEnvironment {
   inline void perAgentStep(int agentId,
                            Eigen::Ref<EigenRowMajorMat> &action,
                            Eigen::Ref<EigenVec> &reward,
-                           Eigen::Ref<EigenVec> &done) {
+                           Eigen::Ref<EigenBoolVec> &done) {
     reward[agentId] = environments_[agentId]->step(action.row(agentId));
     rewardInformation_[agentId] = environments_[agentId]->getRewards().getStdMap();
 
@@ -196,7 +197,6 @@ class VectorizedEnvironment {
       environments_[agentId]->reset();
       reward[agentId] += terminalReward;
     }
-    // std::cout << "-------AGENT " << agentId << " STEP-------" << std::endl;
   }
 
   std::vector<ChildEnvironment *> environments_;
